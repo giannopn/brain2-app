@@ -38,11 +38,11 @@ class _ProfilePageState extends State<ProfilePage> {
             label: 'Home',
           ),
           custom.NavigationBarItem(
-            svgAssetPath: 'assets/svg_icons/Icons/Library.svg',
+            type: NavigationIconType.library,
             label: 'Library',
           ),
           custom.NavigationBarItem(
-            svgAssetPath: 'assets/svg_icons/Icons/User_Circle.svg',
+            type: NavigationIconType.profile,
             label: 'Profile',
           ),
         ],

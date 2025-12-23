@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/screens/profile_page.dart';
+import 'package:brain2/screens/search_page.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
 import 'package:brain2/widgets/navigation_icons.dart';
 import 'package:brain2/widgets/settings_menu.dart';
@@ -16,46 +17,95 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   int _navIndex = 1; // Library tab active
+  bool _showTopBorder = false;
+  static double _savedScrollOffset = 0.0;
+  late final ScrollController _scrollController = ScrollController(
+    initialScrollOffset: _savedScrollOffset,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _savedScrollOffset = _scrollController.offset;
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       body: Column(
         children: [
           // Top bar with search and add button
           _buildTopBar(),
           // Scrollable content
           Expanded(
-            child: SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 15, 20, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCategoriesSection(),
-                    const SizedBox(height: 24),
-                    _buildItemsSection(),
-                  ],
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                final bool isScrolled = notification.metrics.pixels > 0;
+                if (isScrolled != _showTopBorder) {
+                  setState(() => _showTopBorder = isScrolled);
+                }
+                return false;
+              },
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 15, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCategoriesSection(),
+                      const SizedBox(height: 24),
+                      _buildItemsSection(),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [_buildBottomNav(), const SizedBox(height: 50)],
-      ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
+  void _handleScroll() {
+    _savedScrollOffset = _scrollController.offset;
+  }
+
   Widget _buildTopBar() {
-    return SearchTopBar(
-      variant: SearchTopBarVariant.home,
-      onAdd: () {},
-      width: double.infinity,
+    return Container(
+      decoration: BoxDecoration(
+        border: _showTopBorder
+            ? const Border(
+                bottom: BorderSide(color: Color(0xFFF1F1F1), width: 1),
+              )
+            : null,
+      ),
+      child: SearchTopBar(
+        variant: SearchTopBarVariant.home,
+        onAdd: () {},
+        onSearchTap: () {
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const SearchPage(),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
+        },
+        width: double.infinity,
+      ),
     );
   }
 
@@ -214,6 +264,66 @@ class _LibraryPageState extends State<LibraryPage> {
             onTap: () {},
             width: 390,
           ),
+          const SizedBox(height: 4),
+          SettingsMenu(
+            label: 'Cosmote',
+            place: SettingsMenuPlace.lower,
+            icon: const Icon(
+              Icons.credit_card,
+              size: 24,
+              color: Color(0xFF000000),
+            ),
+            onTap: () {},
+            width: 390,
+          ),
+          const SizedBox(height: 4),
+          SettingsMenu(
+            label: 'Cosmote',
+            place: SettingsMenuPlace.lower,
+            icon: const Icon(
+              Icons.credit_card,
+              size: 24,
+              color: Color(0xFF000000),
+            ),
+            onTap: () {},
+            width: 390,
+          ),
+          const SizedBox(height: 4),
+          SettingsMenu(
+            label: 'Cosmote',
+            place: SettingsMenuPlace.lower,
+            icon: const Icon(
+              Icons.credit_card,
+              size: 24,
+              color: Color(0xFF000000),
+            ),
+            onTap: () {},
+            width: 390,
+          ),
+          const SizedBox(height: 4),
+          SettingsMenu(
+            label: 'Cosmote',
+            place: SettingsMenuPlace.lower,
+            icon: const Icon(
+              Icons.credit_card,
+              size: 24,
+              color: Color(0xFF000000),
+            ),
+            onTap: () {},
+            width: 390,
+          ),
+          const SizedBox(height: 4),
+          SettingsMenu(
+            label: 'Cosmote',
+            place: SettingsMenuPlace.lower,
+            icon: const Icon(
+              Icons.credit_card,
+              size: 24,
+              color: Color(0xFF000000),
+            ),
+            onTap: () {},
+            width: 390,
+          ),
         ],
       ),
     );
@@ -224,11 +334,11 @@ class _LibraryPageState extends State<LibraryPage> {
       items: const [
         custom.NavigationBarItem(type: NavigationIconType.home, label: 'Home'),
         custom.NavigationBarItem(
-          svgAssetPath: 'assets/svg_icons/Icons/Library.svg',
+          type: NavigationIconType.library,
           label: 'Library',
         ),
         custom.NavigationBarItem(
-          svgAssetPath: 'assets/svg_icons/Icons/User_Circle.svg',
+          type: NavigationIconType.profile,
           label: 'Profile',
         ),
       ],
@@ -253,7 +363,23 @@ class _LibraryPageState extends State<LibraryPage> {
             ),
           );
         } else {
-          setState(() => _navIndex = index);
+          if (_navIndex == index) {
+            // Already on Library: animate scroll to top
+            if (_scrollController.hasClients) {
+              _scrollController
+                  .animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                  )
+                  .then((_) {
+                    _savedScrollOffset = 0;
+                    setState(() => _showTopBorder = false);
+                  });
+            }
+          } else {
+            setState(() => _navIndex = index);
+          }
         }
       },
     );

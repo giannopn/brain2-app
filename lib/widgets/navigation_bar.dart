@@ -30,29 +30,22 @@ class NavigationBar extends StatelessWidget {
   final double width;
   final double height;
 
-  static const double _paddingH = 15;
-  static const double _paddingV = 18;
-  static const double _gap = 8;
-  static const Color _background = Colors.white;
-
   @override
   Widget build(BuildContext context) {
     return Container(
       width: width,
       height: height,
-      color: const Color.fromARGB(255, 255, 255, 255),
-      padding: const EdgeInsets.symmetric(
-        horizontal: _paddingH,
-        vertical: _paddingV,
+      padding: const EdgeInsets.only(bottom: 25),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF1F1F1), width: 1)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          for (int i = 0; i < items.length; i++) ...[
+          for (int i = 0; i < items.length; i++)
             Expanded(child: Center(child: _buildItem(items[i], i))),
-            if (i != items.length - 1) const SizedBox(width: _gap),
-          ],
         ],
       ),
     );

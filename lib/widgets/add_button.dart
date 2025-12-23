@@ -35,13 +35,10 @@ class AddButton extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: Center(
-        child: Transform.rotate(
-          angle: rotation ? (225 * 3.14159265359 / 180) : 0,
-          child: SizedBox(
-            width: _innerSize,
-            height: _innerSize,
-            child: icon ?? defaultIcon,
-          ),
+        child: SizedBox(
+          width: _innerSize,
+          height: _innerSize,
+          child: icon ?? defaultIcon,
         ),
       ),
     );

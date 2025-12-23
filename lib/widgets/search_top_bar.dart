@@ -12,6 +12,7 @@ class SearchTopBar extends StatelessWidget {
     this.onBack,
     this.onAdd,
     this.onClear,
+    this.onSearchTap,
     this.width = 430,
   });
 
@@ -19,6 +20,7 @@ class SearchTopBar extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onAdd;
   final VoidCallback? onClear;
+  final VoidCallback? onSearchTap;
   final double width;
 
   static const double _paddingH = 15;
@@ -72,14 +74,20 @@ class SearchTopBar extends StatelessWidget {
     custom.SearchBarState state = custom.SearchBarState.defaultState,
   }) {
     return Expanded(
-      child: custom.SearchBar(state: state, onClear: onClear),
+      child: custom.SearchBar(
+        state: state,
+        onClear: onClear,
+        onTap: onSearchTap,
+      ),
     );
   }
 
   Widget _addButton() {
-    return AddButton(
-      rotation: variant == SearchTopBarVariant.searchMode,
-      onPressed: onAdd,
+    final bool isRotated = variant == SearchTopBarVariant.searchMode;
+    return AnimatedRotation(
+      turns: isRotated ? 0.625 : 0, // 225 degrees = 0.625 turns
+      duration: const Duration(milliseconds: 200),
+      child: AddButton(rotation: false, onPressed: onAdd),
     );
   }
 

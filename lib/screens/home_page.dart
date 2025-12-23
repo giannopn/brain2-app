@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:brain2/screens/library_page.dart';
 import 'package:brain2/screens/profile_page.dart';
+import 'package:brain2/screens/search_page.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
 import 'package:brain2/widgets/navigation_icons.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
@@ -22,7 +23,20 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
-          child: SearchTopBar(variant: SearchTopBarVariant.home, onAdd: () {}),
+          child: SearchTopBar(
+            variant: SearchTopBarVariant.home,
+            onAdd: () {},
+            onSearchTap: () {
+              Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      const SearchPage(),
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                ),
+              );
+            },
+          ),
         ),
       ),
       bottomNavigationBar: custom.NavigationBar(
@@ -32,11 +46,11 @@ class _HomePageState extends State<HomePage> {
             label: 'Home',
           ),
           custom.NavigationBarItem(
-            svgAssetPath: 'assets/svg_icons/Icons/Library.svg',
+            type: NavigationIconType.library,
             label: 'Library',
           ),
           custom.NavigationBarItem(
-            svgAssetPath: 'assets/svg_icons/Icons/User_Circle.svg',
+            type: NavigationIconType.profile,
             label: 'Profile',
           ),
         ],
