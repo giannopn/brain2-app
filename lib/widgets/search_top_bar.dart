@@ -13,6 +13,9 @@ class SearchTopBar extends StatelessWidget {
     this.onAdd,
     this.onClear,
     this.onSearchTap,
+    this.onSearchChanged,
+    this.searchController,
+    this.hasText = false,
     this.width = 430,
   });
 
@@ -21,6 +24,9 @@ class SearchTopBar extends StatelessWidget {
   final VoidCallback? onAdd;
   final VoidCallback? onClear;
   final VoidCallback? onSearchTap;
+  final ValueChanged<String>? onSearchChanged;
+  final TextEditingController? searchController;
+  final bool hasText;
   final double width;
 
   static const double _paddingH = 15;
@@ -35,7 +41,11 @@ class SearchTopBar extends StatelessWidget {
       case SearchTopBarVariant.searchMode:
         return _wrap(
           children: [
-            _searchBar(state: custom.SearchBarState.typing),
+            _searchBar(
+              state: hasText
+                  ? custom.SearchBarState.typing
+                  : custom.SearchBarState.defaultState,
+            ),
             _addButton(),
           ],
         );
@@ -78,16 +88,17 @@ class SearchTopBar extends StatelessWidget {
         state: state,
         onClear: onClear,
         onTap: onSearchTap,
+        onChanged: onSearchChanged,
+        controller: searchController,
+        enableInput: variant == SearchTopBarVariant.searchMode,
       ),
     );
   }
 
   Widget _addButton() {
-    final bool isRotated = variant == SearchTopBarVariant.searchMode;
-    return AnimatedRotation(
-      turns: isRotated ? 0.625 : 0, // 225 degrees = 0.625 turns
-      duration: const Duration(milliseconds: 200),
-      child: AddButton(rotation: false, onPressed: onAdd),
+    return AddButton(
+      rotation: variant == SearchTopBarVariant.searchMode,
+      onPressed: onAdd,
     );
   }
 

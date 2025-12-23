@@ -9,6 +9,9 @@ class SearchBar extends StatelessWidget {
     this.hintText = 'Search',
     this.onClear,
     this.onTap,
+    this.onChanged,
+    this.controller,
+    this.enableInput = false,
     this.width = 400,
   });
 
@@ -16,6 +19,9 @@ class SearchBar extends StatelessWidget {
   final String hintText;
   final VoidCallback? onClear;
   final VoidCallback? onTap;
+  final ValueChanged<String>? onChanged;
+  final TextEditingController? controller;
+  final bool enableInput;
   final double width;
 
   static const double _height = 52;
@@ -29,12 +35,15 @@ class SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool showClear = state == SearchBarState.typing;
+    // In search mode, always enable input even in defaultState (when no text yet)
+    final bool shouldShowTextField =
+        enableInput || state == SearchBarState.typing;
 
     return SizedBox(
       width: width,
       height: _height,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: shouldShowTextField ? null : onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -50,16 +59,38 @@ class SearchBar extends StatelessWidget {
               const Icon(Icons.search, size: 24, color: _textColor),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  hintText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w300,
-                    color: _textColor,
-                  ),
-                ),
+                child: shouldShowTextField
+                    ? TextField(
+                        controller: controller,
+                        autofocus: enableInput,
+                        onChanged: onChanged,
+                        decoration: InputDecoration(
+                          hintText: hintText,
+                          hintStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w300,
+                            color: _textColor,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w300,
+                          color: _textColor,
+                        ),
+                      )
+                    : Text(
+                        hintText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w300,
+                          color: _textColor,
+                        ),
+                      ),
               ),
               if (showClear) ...[
                 const SizedBox(width: 8),

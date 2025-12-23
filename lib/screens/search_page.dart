@@ -10,16 +10,25 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  SearchTopBarVariant _variant = SearchTopBarVariant.home;
+  final TextEditingController _searchController = TextEditingController();
+  bool _hasText = false;
 
   @override
   void initState() {
     super.initState();
-    // Trigger animation after page is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() => _variant = SearchTopBarVariant.searchMode);
-      }
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _hasText = _searchController.text.isNotEmpty;
     });
   }
 
@@ -30,8 +39,16 @@ class _SearchPageState extends State<SearchPage> {
       body: Column(
         children: [
           SearchTopBar(
-            variant: _variant,
+            variant: SearchTopBarVariant.searchMode,
+            searchController: _searchController,
+            hasText: _hasText,
             onAdd: () => Navigator.of(context).pop(),
+            onClear: () {
+              _searchController.clear();
+            },
+            onSearchChanged: (value) {
+              // Handle search logic here if needed
+            },
             width: double.infinity,
           ),
         ],
