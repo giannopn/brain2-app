@@ -17,6 +17,9 @@ class SearchTopBar extends StatelessWidget {
     this.searchController,
     this.hasText = false,
     this.width = 430,
+    this.paddingHorizontal = _paddingH,
+    this.paddingTop = _paddingTop,
+    this.paddingBottom = _paddingBottom,
   });
 
   final SearchTopBarVariant variant;
@@ -28,6 +31,9 @@ class SearchTopBar extends StatelessWidget {
   final TextEditingController? searchController;
   final bool hasText;
   final double width;
+  final double paddingHorizontal;
+  final double paddingTop;
+  final double paddingBottom;
 
   static const double _paddingH = 15;
   static const double _paddingTop = 68;
@@ -60,11 +66,11 @@ class SearchTopBar extends StatelessWidget {
     return Container(
       width: width,
       color: _frameBackground,
-      padding: const EdgeInsets.fromLTRB(
-        _paddingH,
-        _paddingTop,
-        _paddingH,
-        _paddingBottom,
+      padding: EdgeInsets.fromLTRB(
+        paddingHorizontal,
+        paddingTop,
+        paddingHorizontal,
+        paddingBottom,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.max,
