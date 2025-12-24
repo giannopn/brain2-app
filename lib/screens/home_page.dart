@@ -19,6 +19,25 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _navIndex = 0;
+  bool _showTopBorder = false;
+  static double _savedScrollOffset = 0.0;
+  late final ScrollController _scrollController = ScrollController(
+    initialScrollOffset: _savedScrollOffset,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _savedScrollOffset = _scrollController.offset;
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,17 +49,29 @@ class _HomePageState extends State<HomePage> {
         children: [
           _buildTopBar(context),
           Expanded(
-            child: SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _HistorySection(horizontalPadding: horizontalPadding),
-                    _SubscriptionsSection(horizontalPadding: horizontalPadding),
-                    const SizedBox(height: 20),
-                  ],
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                final bool isScrolled = notification.metrics.pixels > 15;
+                if (isScrolled != _showTopBorder) {
+                  setState(() => _showTopBorder = isScrolled);
+                }
+                return false;
+              },
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _HistorySection(horizontalPadding: horizontalPadding),
+                      _SubscriptionsSection(
+                        horizontalPadding: horizontalPadding,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -64,7 +95,27 @@ class _HomePageState extends State<HomePage> {
         ],
         activeIndex: _navIndex,
         onItemSelected: (index) {
-          if (index == 1) {
+          if (index == 0) {
+            if (_navIndex == index) {
+              if (_scrollController.hasClients) {
+                _scrollController
+                    .animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                    )
+                    .then((_) {
+                      _savedScrollOffset = 0;
+                      setState(() => _showTopBorder = false);
+                    });
+              }
+            } else {
+              setState(() => _navIndex = index);
+            }
+          } else if (index == 1) {
+            _savedScrollOffset = _scrollController.hasClients
+                ? _scrollController.offset
+                : _savedScrollOffset;
             Navigator.of(context).push(
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) =>
@@ -74,6 +125,9 @@ class _HomePageState extends State<HomePage> {
               ),
             );
           } else if (index == 2) {
+            _savedScrollOffset = _scrollController.hasClients
+                ? _scrollController.offset
+                : _savedScrollOffset;
             Navigator.of(context).push(
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) =>
@@ -82,8 +136,6 @@ class _HomePageState extends State<HomePage> {
                 reverseTransitionDuration: Duration.zero,
               ),
             );
-          } else {
-            setState(() => _navIndex = index);
           }
         },
       ),
@@ -91,21 +143,34 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildTopBar(BuildContext context) {
-    return SearchTopBar(
-      variant: SearchTopBarVariant.home,
-      onAdd: () {},
-      onSearchTap: () {
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const SearchPage(),
-            transitionDuration: Duration.zero,
-            reverseTransitionDuration: Duration.zero,
-          ),
-        );
-      },
-      width: double.infinity,
+    return Container(
+      decoration: BoxDecoration(
+        border: _showTopBorder
+            ? const Border(
+                bottom: BorderSide(color: Color(0xFFF1F1F1), width: 1),
+              )
+            : null,
+      ),
+      child: SearchTopBar(
+        variant: SearchTopBarVariant.home,
+        onAdd: () {},
+        onSearchTap: () {
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const SearchPage(),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
+        },
+        width: double.infinity,
+      ),
     );
+  }
+
+  void _handleScroll() {
+    _savedScrollOffset = _scrollController.offset;
   }
 }
 
@@ -151,6 +216,38 @@ class _HistorySection extends StatelessWidget {
               amount: '-13.00€',
               width: double.infinity,
             ),
+            const SizedBox(height: 4),
+            const HomePageCard(
+              title: 'INTERNET',
+              subtitle: 'in 14 days',
+              amount: '-30.90€',
+              width: double.infinity,
+            ),
+
+            const SizedBox(height: 4),
+            const HomePageCard(
+              title: 'INTERNET',
+              subtitle: 'in 14 days',
+              amount: '-30.90€',
+              width: double.infinity,
+            ),
+
+            const SizedBox(height: 4),
+            const HomePageCard(
+              title: 'INTERNET',
+              subtitle: 'in 14 days',
+              amount: '-30.90€',
+              width: double.infinity,
+            ),
+
+            const SizedBox(height: 4),
+            const HomePageCard(
+              title: 'INTERNET',
+              subtitle: 'in 14 days',
+              amount: '-30.90€',
+              width: double.infinity,
+            ),
+
             const SizedBox(height: 4),
             const HomePageCard(
               title: 'INTERNET',

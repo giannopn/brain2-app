@@ -49,7 +49,7 @@ class _LibraryPageState extends State<LibraryPage> {
           Expanded(
             child: NotificationListener<ScrollNotification>(
               onNotification: (notification) {
-                final bool isScrolled = notification.metrics.pixels > 0;
+                final bool isScrolled = notification.metrics.pixels > 15;
                 if (isScrolled != _showTopBorder) {
                   setState(() => _showTopBorder = isScrolled);
                 }
