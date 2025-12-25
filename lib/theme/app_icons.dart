@@ -19,6 +19,7 @@ class AppIcons {
   static const String help = 'assets/svg_icons/Icons/Help.svg';
   static const String reload = 'assets/svg_icons/Icons/Reload.svg';
   static const String logOut = 'assets/svg_icons/Icons/Log_Out.svg';
+  static const String clock = 'assets/svg_icons/Calendar/Clock.svg';
 
   // Status & Selection icons
   static const String bigCheck = 'assets/svg_icons/Icons/Big_Check.svg';
@@ -26,6 +27,7 @@ class AppIcons {
   static const String checkedBox = 'assets/svg_icons/Icons/Checked_Box.svg';
   static const String box = 'assets/svg_icons/Icons/Box.svg';
   static const String circle = 'assets/svg_icons/Icons/Circle.svg';
+  static const String wavyWarning = 'assets/svg_icons/Warning/Wavy_Warning.svg';
 
   // Category icons
   static const String creditCard = 'assets/svg_icons/Icons/Credit_card.svg';

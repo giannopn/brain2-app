@@ -111,7 +111,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Widget _buildCategoriesSection() {
     return SizedBox(
-      width: 390,
+      width: double.infinity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -132,7 +132,7 @@ class _LibraryPageState extends State<LibraryPage> {
             place: SettingsMenuPlace.upper,
             icon: const Icon(Icons.home, size: 24, color: Color(0xFF000000)),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -144,7 +144,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
         ],
       ),
@@ -153,7 +153,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Widget _buildItemsSection() {
     return SizedBox(
-      width: 390,
+      width: double.infinity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -174,7 +174,7 @@ class _LibraryPageState extends State<LibraryPage> {
             place: SettingsMenuPlace.upper,
             icon: const Icon(Icons.home, size: 24, color: Color(0xFF000000)),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -182,7 +182,7 @@ class _LibraryPageState extends State<LibraryPage> {
             place: SettingsMenuPlace.middle,
             icon: const Icon(Icons.home, size: 24, color: Color(0xFF000000)),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -190,7 +190,7 @@ class _LibraryPageState extends State<LibraryPage> {
             place: SettingsMenuPlace.middle,
             icon: const Icon(Icons.home, size: 24, color: Color(0xFF000000)),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -198,7 +198,7 @@ class _LibraryPageState extends State<LibraryPage> {
             place: SettingsMenuPlace.middle,
             icon: const Icon(Icons.home, size: 24, color: Color(0xFF000000)),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -206,7 +206,7 @@ class _LibraryPageState extends State<LibraryPage> {
             place: SettingsMenuPlace.middle,
             icon: const Icon(Icons.home, size: 24, color: Color(0xFF000000)),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -214,7 +214,7 @@ class _LibraryPageState extends State<LibraryPage> {
             place: SettingsMenuPlace.middle,
             icon: const Icon(Icons.home, size: 24, color: Color(0xFF000000)),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -226,7 +226,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -238,7 +238,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -250,7 +250,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -262,7 +262,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -274,7 +274,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -286,7 +286,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -298,7 +298,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -310,7 +310,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -322,7 +322,7 @@ class _LibraryPageState extends State<LibraryPage> {
               color: Color(0xFF000000),
             ),
             onTap: () {},
-            width: 390,
+            width: double.infinity,
           ),
         ],
       ),

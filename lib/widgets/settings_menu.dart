@@ -12,7 +12,7 @@ class SettingsMenu extends StatelessWidget {
     this.icon,
     this.rightIcon,
     this.onTap,
-    this.width = 326,
+    this.width = double.infinity,
   });
 
   final String label;
