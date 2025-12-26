@@ -10,6 +10,7 @@ import 'package:brain2/overlays/success_overlay.dart';
 import 'package:brain2/overlays/price_edit.dart';
 import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
+import 'package:brain2/overlays/delete_confirmation_overlay.dart';
 
 class BillDetailsPage extends StatefulWidget {
   const BillDetailsPage({
@@ -44,6 +45,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   bool _overlayVisible = false;
   late String _amount;
   late String _deadline;
+  ImageProvider? _photo;
+  Size? _photoSize;
 
   @override
   void initState() {
@@ -137,7 +140,90 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
       // TODO: Integrate gallery picker flow
     }
 
+    // Demo: set a local placeholder image to represent the added photo
+    setState(() {
+      _photo = const AssetImage('assets/icon/brain2_logo.png');
+    });
+    _resolvePhotoSize(context);
+
     widget.onAddPhoto?.call();
+  }
+
+  void _removePhoto() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _photo = null;
+      _photoSize = null;
+    });
+  }
+
+  void _resolvePhotoSize(BuildContext context) {
+    final provider = _photo;
+    if (provider == null) return;
+    final ImageStream stream = provider.resolve(
+      createLocalImageConfiguration(context),
+    );
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool _) {
+        setState(() {
+          _photoSize = Size(
+            info.image.width.toDouble(),
+            info.image.height.toDouble(),
+          );
+        });
+        stream.removeListener(listener);
+      },
+      onError: (Object _, StackTrace? __) {
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+  }
+
+  void _showFullScreenPhoto(BuildContext context) {
+    if (_photo == null) return;
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      barrierDismissible: true,
+      builder: (ctx) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(ctx).pop(),
+          child: Container(
+            color: Colors.black,
+            alignment: Alignment.center,
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image(image: _photo!),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDeleteConfirmationOverlay(
+      context,
+      title: 'Delete this bill?',
+      description: 'This action cannot be undone.',
+    );
+
+    if (confirmed == true) {
+      HapticFeedback.mediumImpact();
+      // Show brief confirmation and navigate back
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Transaction deleted'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      widget.onDelete?.call();
+      Navigator.pop(context);
+    }
   }
 
   List<Widget> _buildDetailsChildren(BuildContext context) {
@@ -185,7 +271,7 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
                 height: 52,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 8,
+                  vertical: 14,
                 ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFD4E8D2),
@@ -259,16 +345,71 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
     widgets.add(const SizedBox(height: 15));
 
-    // Photos section
-    widgets.add(
-      SettingsMenu(
-        label: 'Photo',
-        icon: SvgPicture.asset(AppIcons.image02, width: 24, height: 24),
-        rightText: true,
-        rightLabel: 'Add photo',
-        onRightTap: () => _addPhoto(context),
-      ),
-    );
+    // Photos section: defaultPlace with no photo; grouped upper+lower when photo exists
+    if (_photo == null) {
+      widgets.add(
+        SettingsMenu(
+          label: 'Photo',
+          icon: SvgPicture.asset(AppIcons.image02, width: 24, height: 24),
+          rightText: true,
+          rightLabel: 'Add photo',
+          onRightTap: () => _addPhoto(context),
+        ),
+      );
+    } else {
+      widgets.add(
+        Column(
+          children: [
+            SettingsMenu(
+              label: 'Photo',
+              place: SettingsMenuPlace.upper,
+              icon: SvgPicture.asset(AppIcons.image02, width: 24, height: 24),
+              rightText: true,
+              rightLabel: 'Remove photo',
+              onRightTap: _removePhoto,
+            ),
+            const SizedBox(height: 4),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _showFullScreenPhoto(context),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 15,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1F1F1),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(4),
+                    bottomLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(18),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double aspect =
+                          (_photoSize != null &&
+                              _photoSize!.width > 0 &&
+                              _photoSize!.height > 0)
+                          ? _photoSize!.width / _photoSize!.height
+                          : 16 / 9;
+                      return AspectRatio(
+                        aspectRatio: aspect,
+                        child: Image(image: _photo!, fit: BoxFit.contain),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     widgets.add(const SizedBox(height: 15));
 
@@ -303,7 +444,7 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
                   BlendMode.srcIn,
                 ),
               ),
-              onTap: widget.onDelete,
+              onTap: () => _confirmDelete(context),
             ),
           ],
         ),
@@ -323,7 +464,7 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
               BlendMode.srcIn,
             ),
           ),
-          onTap: widget.onDelete,
+          onTap: () => _confirmDelete(context),
         ),
       );
     }
