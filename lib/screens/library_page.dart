@@ -4,6 +4,7 @@ import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/screens/profile_page.dart';
 import 'package:brain2/screens/search_page.dart';
+import 'package:brain2/screens/add_page.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
 import 'package:brain2/widgets/navigation_icons.dart';
 import 'package:brain2/widgets/settings_menu.dart';
@@ -93,7 +94,11 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
       child: SearchTopBar(
         variant: SearchTopBarVariant.home,
-        onAdd: () {},
+        onAdd: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (context) => const AddPage()));
+        },
         onSearchTap: () {
           Navigator.of(context).push(
             PageRouteBuilder(

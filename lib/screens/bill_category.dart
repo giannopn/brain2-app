@@ -12,6 +12,7 @@ import 'package:brain2/screens/bill_details_page.dart';
 import 'package:brain2/overlays/text_edit.dart';
 import 'package:brain2/overlays/delete_confirmation_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
+import 'package:brain2/screens/add_page.dart';
 
 class BillCategoryPage extends StatefulWidget {
   const BillCategoryPage({
@@ -42,7 +43,7 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
   Future<void> _editName(BuildContext context) async {
     final updated = await showTextEditOverlay(
       context,
-      title: 'Name',
+      title: 'Edit name',
       initialValue: _name,
       hintText: 'Enter a name',
     );
@@ -158,7 +159,11 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
             variant: SearchTopBarVariant.withBack,
             centerTitle: _name,
             onBack: widget.onBack ?? () => Navigator.pop(context),
-            onAdd: widget.onAdd,
+            onAdd:
+                widget.onAdd ??
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const AddPage()),
+                ),
             paddingTop: 68,
             paddingBottom: 10,
             paddingHorizontal: 15,

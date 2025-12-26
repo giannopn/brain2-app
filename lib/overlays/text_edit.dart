@@ -75,7 +75,7 @@ class _TextEditOverlayState extends State<TextEditOverlay> {
               padding: EdgeInsets.fromLTRB(15, 15, 15, contentBottomPadding),
               children: [
                 Text(
-                  'Edit ${widget.title}',
+                  widget.title,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 20,

@@ -25,6 +25,8 @@ class AppIcons {
   // Interface additions
   static const String mainComponent =
       'assets/svg_icons/Interface/Main_Component.svg';
+  // Edit icons
+  static const String editPencil = 'assets/svg_icons/Edit/Edit_Pencil_01.svg';
   // Calendar additions
   static const String calendarEvent =
       'assets/svg_icons/Calendar/Calendar_Event.svg';

@@ -5,6 +5,7 @@ import 'package:brain2/widgets/filters.dart';
 import 'package:brain2/models/search_item.dart';
 import 'package:brain2/data/mock_search_data.dart';
 import 'package:brain2/screens/bill_category.dart';
+import 'package:brain2/screens/add_page.dart';
 
 class BillsPage extends StatefulWidget {
   const BillsPage({super.key});
@@ -74,7 +75,9 @@ class _BillsPageState extends State<BillsPage> {
             variant: SearchTopBarVariant.withBack,
             onBack: () => Navigator.of(context).pop(),
             onAdd: () {
-              // Handle add bill action
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (context) => const AddPage()));
             },
             onSearchTap: () {
               // Handle search tap

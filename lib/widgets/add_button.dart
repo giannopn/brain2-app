@@ -8,11 +8,13 @@ class AddButton extends StatelessWidget {
     this.rotation = false,
     this.onPressed,
     this.icon,
+    this.backgroundColor,
   });
 
   final bool rotation;
   final VoidCallback? onPressed;
   final Widget? icon;
+  final Color? backgroundColor;
 
   static const double _size = 52;
   static const double _innerSize = 44;
@@ -30,8 +32,8 @@ class AddButton extends StatelessWidget {
     final child = Container(
       width: _size,
       height: _size,
-      decoration: const BoxDecoration(
-        color: _background,
+      decoration: BoxDecoration(
+        color: backgroundColor ?? _background,
         shape: BoxShape.circle,
       ),
       child: Center(

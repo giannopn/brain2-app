@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:brain2/widgets/search_top_bar.dart';
+import 'package:brain2/widgets/text_top_bar.dart';
 import 'package:brain2/widgets/bill_status.dart';
 import 'package:brain2/widgets/settings_menu.dart';
 import 'package:brain2/widgets/bill_status_menu.dart';
@@ -12,8 +12,8 @@ import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
 import 'package:brain2/overlays/delete_confirmation_overlay.dart';
 
-class BillDetailsPage extends StatefulWidget {
-  const BillDetailsPage({
+class AddNewBillPage extends StatefulWidget {
+  const AddNewBillPage({
     super.key,
     this.categoryTitle = 'ΔΕΗ',
     this.amount = '-46.28€',
@@ -37,10 +37,10 @@ class BillDetailsPage extends StatefulWidget {
   final VoidCallback? onDelete;
 
   @override
-  State<BillDetailsPage> createState() => _BillDetailsPageState();
+  State<AddNewBillPage> createState() => _AddNewBillPageState();
 }
 
-class _BillDetailsPageState extends State<BillDetailsPage> {
+class _AddNewBillPageState extends State<AddNewBillPage> {
   late BillStatusType _status;
   bool _overlayVisible = false;
   late String _amount;
@@ -57,7 +57,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   }
 
   Future<void> _editAmount(BuildContext context) async {
-    // Strip euro symbol for the overlay input
     final currentValue = _amount.replaceAll('€', '').trim();
 
     final updated = await showPriceEditOverlay(
@@ -68,7 +67,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     );
 
     if (updated != null && updated.isNotEmpty) {
-      // Append euro symbol to the formatted price
       final formattedAmount = '${updated}€';
       if (formattedAmount != _amount) {
         setState(() {
@@ -79,8 +77,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   }
 
   Future<void> _editDeadline(BuildContext context) async {
-    // Parse the deadline string to DateTime
-    // Expecting format like "20 Nov 2025"
     DateTime initialDate;
     try {
       initialDate = DateTime.parse(_deadline);
@@ -95,7 +91,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     );
 
     if (updated != null) {
-      // Format the date back to string "DD MMM YYYY"
       final formatter = _formatDate(updated);
       if (formatter != _deadline) {
         setState(() {
@@ -140,7 +135,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
       // TODO: Integrate gallery picker flow
     }
 
-    // Demo: set a local placeholder image to represent the added photo
     setState(() {
       _photo = const AssetImage('assets/icon/brain2_logo.png');
     });
@@ -214,7 +208,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
     if (confirmed == true) {
       HapticFeedback.mediumImpact();
-      // Show brief confirmation and navigate back
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Transaction deleted'),
@@ -228,7 +221,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
   List<Widget> _buildDetailsChildren(BuildContext context) {
     final widgets = <Widget>[];
-    // Demo image at the top
     widgets.add(
       Padding(
         padding: const EdgeInsets.all(15),
@@ -258,7 +250,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
       ),
     );
 
-    // Toggle control: button for Pending, placeholder for Paid
     widgets.add(
       _status != BillStatusType.paid
           ? GestureDetector(
@@ -290,7 +281,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
     widgets.add(const SizedBox(height: 15));
 
-    // Status section
     widgets.add(
       BillStatusMenu(
         label: 'Status',
@@ -301,7 +291,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
     widgets.add(const SizedBox(height: 15));
 
-    // Amount, Deadline, Created On sections (grouped)
     widgets.add(
       Column(
         children: [
@@ -341,7 +330,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
     widgets.add(const SizedBox(height: 15));
 
-    // Photos section: defaultPlace with no photo; grouped upper+lower when photo exists
     if (_photo == null) {
       widgets.add(
         SettingsMenu(
@@ -409,7 +397,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
     widgets.add(const SizedBox(height: 15));
 
-    // Bottom actions: Pending -> single Delete row; Paid -> Mark as unpaid + Delete grouped
     if (_status == BillStatusType.paid) {
       widgets.add(
         Column(
@@ -471,7 +458,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   }
 
   void _toggleStatus() {
-    // Toggle behavior: show success overlay only when going Pending -> Paid
     if (_status != BillStatusType.paid) {
       HapticFeedback.mediumImpact();
       widget.onMarkAsPaid?.call();
@@ -501,15 +487,11 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
         children: [
           Column(
             children: [
-              SearchTopBar(
-                variant: SearchTopBarVariant.withBack,
-                centerTitle: widget.categoryTitle,
+              TextTopBar(
+                variant: TextTopBarVariant.doneInactive,
+                title: 'Add new bill',
                 onBack: widget.onBack ?? () => Navigator.pop(context),
-                paddingTop: 68,
-                paddingBottom: 10,
-                paddingHorizontal: 15,
-                hasText: false,
-                width: MediaQuery.of(context).size.width,
+                onAddPressed: () {},
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -524,7 +506,6 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
               ),
             ],
           ),
-          // Success overlay layer with fade in/out
           AnimatedOpacity(
             opacity: _overlayVisible ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
