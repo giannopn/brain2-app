@@ -8,6 +8,7 @@ class AppIcons {
 
   // System & Interface icons
   static const String search = 'assets/svg_icons/Icons/Search.svg';
+  static const String searchBig = 'assets/svg_icons/Icons/SearchBig.svg';
   static const String plus = 'assets/svg_icons/Icons/Plus.svg';
   static const String plusBig = 'assets/svg_icons/Icons/PlusBig.svg';
   static const String plusCircle = 'assets/svg_icons/Icons/Plus_Circle.svg';
@@ -20,9 +21,12 @@ class AppIcons {
   static const String reload = 'assets/svg_icons/Icons/Reload.svg';
   static const String logOut = 'assets/svg_icons/Icons/Log_Out.svg';
   static const String clock = 'assets/svg_icons/Calendar/Clock.svg';
+  static const String backArrowBig = 'assets/svg_icons/Icons/BackArrowBig.svg';
 
   // Status & Selection icons
   static const String bigCheck = 'assets/svg_icons/Icons/Big_Check.svg';
+  static const String checkWhiteBig =
+      'assets/svg_icons/Icons/CheckWhiteBig.svg';
   static const String checkCircle = 'assets/svg_icons/Icons/Check_Circle.svg';
   static const String checkedBox = 'assets/svg_icons/Icons/Checked_Box.svg';
   static const String box = 'assets/svg_icons/Icons/Box.svg';

@@ -63,6 +63,20 @@ class _SearchPageState extends State<SearchPage> {
       items = items
           .where((item) => item.title.toLowerCase().contains(query))
           .toList();
+
+      // Sort results by relevance score (descending), then alphabetically
+      items.sort((a, b) {
+        final scoreA = _calculateRelevanceScore(a.title, query);
+        final scoreB = _calculateRelevanceScore(b.title, query);
+
+        // Higher score first (descending)
+        if (scoreA != scoreB) {
+          return scoreB.compareTo(scoreA);
+        }
+
+        // Tie-breaker: alphabetical order
+        return a.title.compareTo(b.title);
+      });
     }
 
     _filteredItems = items;
@@ -78,6 +92,44 @@ class _SearchPageState extends State<SearchPage> {
 
   void _dismissKeyboard() {
     _searchFocusNode.unfocus();
+  }
+
+  /// Calculates relevance score for a search result.
+  /// Higher score = more relevant, appears first in results.
+  ///
+  /// Scoring rules (highest priority first):
+  /// - Exact match: 1000
+  /// - Title starts with query: 500 + (1000 - matchPosition)
+  /// - Any word starts with query: 300 + (1000 - matchPosition)
+  /// - Contains query: 100 + (1000 - matchPosition)
+  double _calculateRelevanceScore(String title, String query) {
+    final normalizedTitle = title.toLowerCase();
+    final matchPosition = normalizedTitle.indexOf(query);
+
+    // Exact match
+    if (normalizedTitle == query) {
+      return 1000.0;
+    }
+
+    // Title starts with query
+    if (normalizedTitle.startsWith(query)) {
+      return 500.0 + (1000 - matchPosition);
+    }
+
+    // Any word in title starts with query
+    final words = normalizedTitle.split(RegExp(r'\s+'));
+    for (final word in words) {
+      if (word.startsWith(query)) {
+        return 300.0 + (1000 - matchPosition);
+      }
+    }
+
+    // Contains query anywhere
+    if (matchPosition != -1) {
+      return 100.0 + (1000 - matchPosition);
+    }
+
+    return 0.0;
   }
 
   @override

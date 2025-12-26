@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:brain2/theme/app_icons.dart';
 
 enum SearchBarState { defaultState, typing }
 
@@ -58,7 +60,7 @@ class SearchBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.search, size: 24, color: _textColor),
+              SvgPicture.asset(AppIcons.search, width: 24, height: 24),
               const SizedBox(width: 8),
               Expanded(
                 child: shouldShowTextField
