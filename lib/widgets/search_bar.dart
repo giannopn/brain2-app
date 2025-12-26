@@ -11,6 +11,7 @@ class SearchBar extends StatelessWidget {
     this.onTap,
     this.onChanged,
     this.controller,
+    this.focusNode,
     this.enableInput = false,
     this.width = 400,
   });
@@ -21,6 +22,7 @@ class SearchBar extends StatelessWidget {
   final VoidCallback? onTap;
   final ValueChanged<String>? onChanged;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final bool enableInput;
   final double width;
 
@@ -62,6 +64,7 @@ class SearchBar extends StatelessWidget {
                 child: shouldShowTextField
                     ? TextField(
                         controller: controller,
+                        focusNode: focusNode,
                         autofocus: enableInput,
                         onChanged: onChanged,
                         decoration: InputDecoration(

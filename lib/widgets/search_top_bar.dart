@@ -15,6 +15,7 @@ class SearchTopBar extends StatelessWidget {
     this.onSearchTap,
     this.onSearchChanged,
     this.searchController,
+    this.searchFocusNode,
     this.hasText = false,
     this.width = 430,
     this.paddingHorizontal = _paddingH,
@@ -29,6 +30,7 @@ class SearchTopBar extends StatelessWidget {
   final VoidCallback? onSearchTap;
   final ValueChanged<String>? onSearchChanged;
   final TextEditingController? searchController;
+  final FocusNode? searchFocusNode;
   final bool hasText;
   final double width;
   final double paddingHorizontal;
@@ -39,7 +41,7 @@ class SearchTopBar extends StatelessWidget {
   static const double _paddingTop = 68;
   static const double _paddingBottom = 10;
   static const double _gap = 10;
-  static const Color _frameBackground = Colors.white;
+  static const Color _frameBackground = Color.fromARGB(255, 255, 255, 255);
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +98,7 @@ class SearchTopBar extends StatelessWidget {
         onTap: onSearchTap,
         onChanged: onSearchChanged,
         controller: searchController,
+        focusNode: searchFocusNode,
         enableInput: variant == SearchTopBarVariant.searchMode,
       ),
     );

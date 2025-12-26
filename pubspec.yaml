@@ -69,6 +69,8 @@ flutter:
     - assets/icon/
     - assets/svg_icons/
     - assets/svg_icons/Icons/
+    - assets/svg_icons/Calendar/
+    - assets/svg_icons/Warning/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -95,3 +97,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/inter/Inter-VariableFont_opsz,wght.ttf
+        - asset: assets/fonts/inter/Inter-Italic-VariableFont_opsz,wght.ttf
+          style: italic

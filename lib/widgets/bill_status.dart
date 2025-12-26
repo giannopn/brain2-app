@@ -18,9 +18,9 @@ class BillStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Colors per status (from Figma)
-    late final Color background;
-    late final Color foreground;
-    late final String? iconAsset; // only for large size
+    final Color background;
+    final Color foreground;
+    final String iconAsset; // only for large size
 
     switch (status) {
       case BillStatusType.paid:

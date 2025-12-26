@@ -8,11 +8,13 @@ class ButtonSmall extends StatelessWidget {
     required this.label,
     this.onPressed,
     this.variant = ButtonSmallVariant.defaultVariant,
+    this.minWidth,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final ButtonSmallVariant variant;
+  final double? minWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -28,22 +30,25 @@ class ButtonSmall extends StatelessWidget {
         foregroundColor = const Color(0xFF000000);
     }
 
-    final child = Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(37),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        softWrap: false,
-        overflow: TextOverflow.clip,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: foregroundColor,
+    final child = ConstrainedBox(
+      constraints: BoxConstraints(minWidth: minWidth ?? 0),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(37),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.clip,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: foregroundColor,
+          ),
         ),
       ),
     );
