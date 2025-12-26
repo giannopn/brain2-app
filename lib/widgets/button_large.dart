@@ -8,11 +8,13 @@ class ButtonLarge extends StatelessWidget {
     required this.label,
     this.onPressed,
     this.variant = ButtonLargeVariant.defaultVariant,
+    this.leading,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final ButtonLargeVariant variant;
+  final Widget? leading;
 
   static const double _height = 52;
   static const EdgeInsets _padding = EdgeInsets.symmetric(
@@ -47,17 +49,23 @@ class ButtonLarge extends StatelessWidget {
         borderRadius: BorderRadius.circular(_height),
       ),
       child: Center(
-        child: Text(
-          label,
-          maxLines: 1,
-          softWrap: false,
-          overflow: TextOverflow.clip,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w400,
-            color: foregroundColor,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (leading != null) ...[leading!, const SizedBox(width: 8)],
+            Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w400,
+                color: foregroundColor,
+              ),
+            ),
+          ],
         ),
       ),
     );

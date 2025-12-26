@@ -29,6 +29,12 @@ class AppIcons {
   static const String calendarEvent =
       'assets/svg_icons/Calendar/Calendar_Event.svg';
 
+  // System icons
+  static const String camera = 'assets/svg_icons/System/Camera.svg';
+
+  // File icons
+  static const String folder = 'assets/svg_icons/File/Folder.svg';
+
   // Status & Selection icons
   static const String bigCheck = 'assets/svg_icons/Icons/Big_Check.svg';
   static const String checkWhiteBig = 'assets/svg_icons/CheckWhiteBig.svg';

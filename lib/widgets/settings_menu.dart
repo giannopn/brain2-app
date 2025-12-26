@@ -12,6 +12,7 @@ class SettingsMenu extends StatelessWidget {
     this.icon,
     this.rightIcon,
     this.onTap,
+    this.onRightTap,
     this.width = double.infinity,
     this.labelColor,
     this.hideIcon = false,
@@ -25,6 +26,7 @@ class SettingsMenu extends StatelessWidget {
   final Widget? icon;
   final Widget? rightIcon;
   final VoidCallback? onTap;
+  final VoidCallback? onRightTap;
   final double width;
   final Color? labelColor;
   final bool hideIcon;
@@ -73,17 +75,7 @@ class SettingsMenu extends StatelessWidget {
         const Icon(Icons.settings_outlined, size: 24, color: _textColor);
 
     final Widget trailing = rightText
-        ? Text(
-            rightLabel ?? label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w400,
-              color: rightLabelColor ?? _accentColor,
-            ),
-          )
+        ? _buildTrailingText()
         : (rightIcon ??
               const Icon(Icons.chevron_right, size: 24, color: _textColor));
 
@@ -134,6 +126,28 @@ class SettingsMenu extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: SizedBox(width: width, child: content),
       ),
+    );
+  }
+
+  Widget _buildTrailingText() {
+    final text = Text(
+      rightLabel ?? label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w400,
+        color: rightLabelColor ?? _accentColor,
+      ),
+    );
+
+    if (onRightTap == null) return text;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onRightTap,
+      child: text,
     );
   }
 }

@@ -8,8 +8,9 @@ import 'package:brain2/widgets/bills_cards.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/screens/bill_transactions_page.dart';
 import 'package:brain2/screens/bill_details_page.dart';
+import 'package:brain2/overlays/text_edit.dart';
 
-class BillCategoryPage extends StatelessWidget {
+class BillCategoryPage extends StatefulWidget {
   const BillCategoryPage({
     super.key,
     this.categoryTitle = 'ΔΕΗ',
@@ -22,6 +23,34 @@ class BillCategoryPage extends StatelessWidget {
   final VoidCallback? onAdd;
 
   @override
+  State<BillCategoryPage> createState() => _BillCategoryPageState();
+}
+
+class _BillCategoryPageState extends State<BillCategoryPage> {
+  late String _name;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = widget.categoryTitle;
+  }
+
+  Future<void> _editName(BuildContext context) async {
+    final updated = await showTextEditOverlay(
+      context,
+      title: 'Name',
+      initialValue: _name,
+      hintText: 'Enter a name',
+    );
+
+    if (updated != null && updated.isNotEmpty && updated != _name) {
+      setState(() {
+        _name = updated;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -29,9 +58,9 @@ class BillCategoryPage extends StatelessWidget {
         children: [
           SearchTopBar(
             variant: SearchTopBarVariant.withBack,
-            centerTitle: categoryTitle,
-            onBack: onBack ?? () => Navigator.pop(context),
-            onAdd: onAdd,
+            centerTitle: _name,
+            onBack: widget.onBack ?? () => Navigator.pop(context),
+            onAdd: widget.onAdd,
             paddingTop: 68,
             paddingBottom: 10,
             paddingHorizontal: 15,
@@ -81,13 +110,14 @@ class BillCategoryPage extends StatelessWidget {
                     child: SettingsMenu(
                       label: 'Name',
                       rightText: true,
-                      rightLabel: categoryTitle,
+                      rightLabel: _name,
                       icon: SvgPicture.asset(
                         AppIcons.home,
                         width: 24,
                         height: 24,
                       ),
                       place: SettingsMenuPlace.defaultPlace,
+                      onRightTap: () => _editName(context),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -101,9 +131,8 @@ class BillCategoryPage extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => BillTransactionsPage(
-                              categoryTitle: categoryTitle,
-                            ),
+                            builder: (context) =>
+                                BillTransactionsPage(categoryTitle: _name),
                           ),
                         );
                       },
@@ -117,7 +146,7 @@ class BillCategoryPage extends StatelessWidget {
                       children: [
                         BillsCard(
                           type: BillsCardType.detailed,
-                          title: categoryTitle,
+                          title: _name,
                           subtitle: 'in 6 days',
                           amount: '-46.28€',
                           status: BillStatusType.pending,
@@ -127,7 +156,7 @@ class BillCategoryPage extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => BillDetailsPage(
-                                  categoryTitle: categoryTitle,
+                                  categoryTitle: _name,
                                   amount: '-46.28€',
                                   status: BillStatusType.pending,
                                   deadline: 'in 6 days',
@@ -140,7 +169,7 @@ class BillCategoryPage extends StatelessWidget {
                         const SizedBox(height: 4),
                         BillsCard(
                           type: BillsCardType.detailed,
-                          title: categoryTitle,
+                          title: _name,
                           subtitle: '17 November 2025',
                           amount: '-34.76€',
                           status: BillStatusType.paid,
@@ -150,7 +179,7 @@ class BillCategoryPage extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => BillDetailsPage(
-                                  categoryTitle: categoryTitle,
+                                  categoryTitle: _name,
                                   amount: '-34.76€',
                                   status: BillStatusType.paid,
                                   deadline: '17 November 2025',
@@ -163,7 +192,7 @@ class BillCategoryPage extends StatelessWidget {
                         const SizedBox(height: 4),
                         BillsCard(
                           type: BillsCardType.detailed,
-                          title: categoryTitle,
+                          title: _name,
                           subtitle: '6 October 2025',
                           amount: '-37.58€',
                           status: BillStatusType.paid,
@@ -173,7 +202,7 @@ class BillCategoryPage extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => BillDetailsPage(
-                                  categoryTitle: categoryTitle,
+                                  categoryTitle: _name,
                                   amount: '-37.58€',
                                   status: BillStatusType.paid,
                                   deadline: '6 October 2025',
@@ -186,7 +215,7 @@ class BillCategoryPage extends StatelessWidget {
                         const SizedBox(height: 4),
                         BillsCard(
                           type: BillsCardType.detailed,
-                          title: categoryTitle,
+                          title: _name,
                           subtitle: '4 September 2025',
                           amount: '-32.14€',
                           status: BillStatusType.paid,
@@ -196,7 +225,7 @@ class BillCategoryPage extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => BillDetailsPage(
-                                  categoryTitle: categoryTitle,
+                                  categoryTitle: _name,
                                   amount: '-32.14€',
                                   status: BillStatusType.paid,
                                   deadline: '4 September 2025',
@@ -209,7 +238,7 @@ class BillCategoryPage extends StatelessWidget {
                         const SizedBox(height: 4),
                         BillsCard(
                           type: BillsCardType.detailed,
-                          title: categoryTitle,
+                          title: _name,
                           subtitle: '4 August 2025',
                           amount: '-65.31€',
                           status: BillStatusType.paid,
@@ -219,7 +248,7 @@ class BillCategoryPage extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => BillDetailsPage(
-                                  categoryTitle: categoryTitle,
+                                  categoryTitle: _name,
                                   amount: '-65.31€',
                                   status: BillStatusType.paid,
                                   deadline: '4 August 2025',
@@ -252,7 +281,7 @@ class BillCategoryPage extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                'Delete $categoryTitle',
+                                'Delete $_name',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.left,

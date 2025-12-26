@@ -7,6 +7,9 @@ import 'package:brain2/widgets/settings_menu.dart';
 import 'package:brain2/widgets/bill_status_menu.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/overlays/success_overlay.dart';
+import 'package:brain2/overlays/price_edit.dart';
+import 'package:brain2/overlays/calendar_overlay.dart';
+import 'package:brain2/overlays/photo_add_overlay.dart';
 
 class BillDetailsPage extends StatefulWidget {
   const BillDetailsPage({
@@ -39,11 +42,102 @@ class BillDetailsPage extends StatefulWidget {
 class _BillDetailsPageState extends State<BillDetailsPage> {
   late BillStatusType _status;
   bool _overlayVisible = false;
+  late String _amount;
+  late String _deadline;
 
   @override
   void initState() {
     super.initState();
     _status = widget.status;
+    _amount = widget.amount;
+    _deadline = widget.deadline;
+  }
+
+  Future<void> _editAmount(BuildContext context) async {
+    // Strip euro symbol for the overlay input
+    final currentValue = _amount.replaceAll('€', '').trim();
+
+    final updated = await showPriceEditOverlay(
+      context,
+      title: 'Amount',
+      initialValue: currentValue,
+      hintText: '',
+    );
+
+    if (updated != null && updated.isNotEmpty) {
+      // Append euro symbol to the formatted price
+      final formattedAmount = '${updated}€';
+      if (formattedAmount != _amount) {
+        setState(() {
+          _amount = formattedAmount;
+        });
+      }
+    }
+  }
+
+  Future<void> _editDeadline(BuildContext context) async {
+    // Parse the deadline string to DateTime
+    // Expecting format like "20 Nov 2025"
+    DateTime initialDate;
+    try {
+      initialDate = DateTime.parse(_deadline);
+    } catch (e) {
+      initialDate = DateTime.now();
+    }
+
+    final updated = await showCalendarOverlay(
+      context,
+      title: 'Deadline',
+      initialDate: initialDate,
+    );
+
+    if (updated != null) {
+      // Format the date back to string "DD MMM YYYY"
+      final formatter = _formatDate(updated);
+      if (formatter != _deadline) {
+        setState(() {
+          _deadline = formatter;
+        });
+      }
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Future<void> _addPhoto(BuildContext context) async {
+    final selection = await showPhotoAddOverlay(context, title: 'Add photo');
+
+    if (selection == null) return;
+
+    if (selection == 'camera') {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Opening camera...')));
+      // TODO: Integrate camera capture flow
+    } else if (selection == 'gallery') {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Opening gallery...')));
+      // TODO: Integrate gallery picker flow
+    }
+
+    widget.onAddPhoto?.call();
   }
 
   List<Widget> _buildDetailsChildren(BuildContext context) {
@@ -52,26 +146,30 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     widgets.add(
       Padding(
         padding: const EdgeInsets.all(15),
-        child: Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade300, width: 2),
-          ),
-          child: ClipOval(
-            child: Image.network(
-              'https://via.placeholder.com/100',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey.shade200,
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey.shade400,
-                  ),
-                );
-              },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _addPhoto(context),
+          child: Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade300, width: 2),
+            ),
+            child: ClipOval(
+              child: Image.network(
+                'https://via.placeholder.com/100',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey.shade400,
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -130,7 +228,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
             place: SettingsMenuPlace.upper,
             icon: SvgPicture.asset(AppIcons.tag, width: 24, height: 24),
             rightText: true,
-            rightLabel: widget.amount,
+            rightLabel: _amount,
+            onRightTap: () => _editAmount(context),
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -142,7 +241,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
               height: 24,
             ),
             rightText: true,
-            rightLabel: widget.deadline,
+            rightLabel: _deadline,
+            onRightTap: () => _editDeadline(context),
           ),
           const SizedBox(height: 4),
           SettingsMenu(
@@ -162,11 +262,11 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     // Photos section
     widgets.add(
       SettingsMenu(
-        label: 'Photos',
+        label: 'Photo',
         icon: SvgPicture.asset(AppIcons.image02, width: 24, height: 24),
         rightText: true,
         rightLabel: 'Add photo',
-        onTap: widget.onAddPhoto,
+        onRightTap: () => _addPhoto(context),
       ),
     );
 
