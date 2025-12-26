@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/filters.dart';
-import 'package:brain2/widgets/bills_cards.dart';
-import 'package:brain2/widgets/home_page_cards.dart';
-import 'package:brain2/widgets/bill_status.dart';
+import 'package:brain2/models/search_item.dart';
+import 'package:brain2/data/mock_search_data.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -19,6 +18,7 @@ class _SearchPageState extends State<SearchPage> {
   bool _hasText = false;
   bool _showFiltersBorder = false;
   FilterActive _activeFilter = FilterActive.all;
+  List<SearchItem> _filteredItems = mockSearchItems;
 
   @override
   void initState() {
@@ -37,12 +37,41 @@ class _SearchPageState extends State<SearchPage> {
   void _onSearchChanged() {
     setState(() {
       _hasText = _searchController.text.isNotEmpty;
+      _filterItems();
     });
+  }
+
+  void _filterItems() {
+    final query = _searchController.text.toLowerCase().trim();
+
+    List<SearchItem> items = mockSearchItems;
+
+    // Filter by type based on active filter
+    if (_activeFilter == FilterActive.second) {
+      // Only bills
+      items = items.where((item) => item.type == SearchItemType.bill).toList();
+    } else if (_activeFilter == FilterActive.third) {
+      // Only subscriptions
+      items = items
+          .where((item) => item.type == SearchItemType.subscription)
+          .toList();
+    }
+    // If _activeFilter == FilterActive.all, show all types
+
+    // Filter by search query
+    if (query.isNotEmpty) {
+      items = items
+          .where((item) => item.title.toLowerCase().contains(query))
+          .toList();
+    }
+
+    _filteredItems = items;
   }
 
   void _onFilterChanged(FilterActive filter) {
     setState(() {
       _activeFilter = filter;
+      _filterItems(); // Re-filter items when filter changes
     });
     _searchFocusNode.unfocus();
   }
@@ -103,90 +132,35 @@ class _SearchPageState extends State<SearchPage> {
                   }
                   return false;
                 },
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    child: Column(
-                      children: const [
-                        SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.general,
-                          title: 'ΚΟΙΝΟΧΡΗΣΤΑ',
-                          status: BillStatusType.paid,
-                          width: double.infinity,
+                child: _filteredItems.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            'No results found',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
                         ),
-                        SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.general,
-                          title: 'ΔΕΗ',
-                          status: BillStatusType.pending,
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.general,
-                          title: 'ΕΥΔΑΠ',
-                          status: BillStatusType.pending,
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.general,
-                          title: 'ΦΥΣΙΚΟ ΑΕΡΙΟ',
-                          status: BillStatusType.paid,
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.general,
-                          title: 'ΔΕΗ - ΣΠΙΤΙ 2',
-                          status: BillStatusType.overdue,
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.general,
-                          title: 'INTERNET',
-                          status: BillStatusType.pending,
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        HomePageCard(
-                          cardType: HomePageCardType.subscription,
-                          title: 'Youtube Premium',
-                          subtitle: 'Monthly, next on 10 Nov',
-                          amount: '-9.99€',
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        HomePageCard(
-                          cardType: HomePageCardType.subscription,
-                          title: 'Netflix',
-                          subtitle: 'Monthly, next on 10 Nov',
-                          amount: '-9.99€',
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        HomePageCard(
-                          cardType: HomePageCardType.subscription,
-                          title: 'Spotify',
-                          subtitle: 'Monthly, next on 10 Nov',
-                          amount: '-9.99€',
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 4),
-                        HomePageCard(
-                          cardType: HomePageCardType.subscription,
-                          title: 'Google One',
-                          subtitle: 'Monthly, next on 10 Nov',
-                          amount: '-9.99€',
-                          width: double.infinity,
-                        ),
-                        SizedBox(height: 61),
-                      ],
-                    ),
-                  ),
-                ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        itemCount: _filteredItems.length + 2,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return const SizedBox(height: 4);
+                          }
+                          if (index == _filteredItems.length + 1) {
+                            return const SizedBox(height: 61);
+                          }
+                          final item = _filteredItems[index - 1];
+                          return Column(
+                            children: [item.card, const SizedBox(height: 4)],
+                          );
+                        },
+                      ),
               ),
             ),
           ],

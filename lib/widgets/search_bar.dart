@@ -45,7 +45,7 @@ class SearchBar extends StatelessWidget {
       width: width,
       height: _height,
       child: GestureDetector(
-        onTap: shouldShowTextField ? null : onTap,
+        onTap: shouldShowTextField ? () => focusNode?.requestFocus() : onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.symmetric(
