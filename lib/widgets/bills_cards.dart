@@ -22,6 +22,7 @@ class BillsCard extends StatelessWidget {
     this.iconColor,
     this.iconBackgroundColor,
     this.width = 356,
+    this.onTap,
   });
 
   final BillsCardType type;
@@ -34,6 +35,7 @@ class BillsCard extends StatelessWidget {
   final Color? iconColor;
   final Color? iconBackgroundColor;
   final double width;
+  final VoidCallback? onTap;
 
   // Typography (aligned with existing widgets)
   static const double _fontSizeTitle = 20;
@@ -53,9 +55,10 @@ class BillsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final cardWidget = Container(
       width: width,
       padding: const EdgeInsets.all(_padding),
+      color: Colors.transparent,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -69,6 +72,16 @@ class BillsCard extends StatelessWidget {
           _buildRightSection(),
         ],
       ),
+    );
+
+    if (onTap == null) {
+      return cardWidget;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: cardWidget,
     );
   }
 

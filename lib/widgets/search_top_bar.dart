@@ -23,6 +23,7 @@ class SearchTopBar extends StatelessWidget {
     this.paddingHorizontal = _paddingH,
     this.paddingTop = _paddingTop,
     this.paddingBottom = _paddingBottom,
+    this.centerTitle,
   });
 
   final SearchTopBarVariant variant;
@@ -38,6 +39,7 @@ class SearchTopBar extends StatelessWidget {
   final double paddingHorizontal;
   final double paddingTop;
   final double paddingBottom;
+  final String? centerTitle;
 
   static const double _paddingH = 15;
   static const double _paddingTop = 68;
@@ -47,6 +49,9 @@ class SearchTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (centerTitle != null && variant == SearchTopBarVariant.withBack) {
+      return _wrapWithCenteredTitle(children: [_backButton(), _addButton()]);
+    }
     switch (variant) {
       case SearchTopBarVariant.searchMode:
         return _wrap(
@@ -85,6 +90,41 @@ class SearchTopBar extends StatelessWidget {
             children[i],
             if (i != children.length - 1) const SizedBox(width: _gap),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _wrapWithCenteredTitle({required List<Widget> children}) {
+    return Container(
+      width: width,
+      color: _frameBackground,
+      padding: EdgeInsets.fromLTRB(
+        paddingHorizontal,
+        paddingTop,
+        paddingHorizontal,
+        paddingBottom,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Centered title
+          Text(
+            centerTitle ?? '',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+              fontFamily: 'Inter',
+            ),
+          ),
+          // Back button and add button on sides
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: children,
+          ),
         ],
       ),
     );

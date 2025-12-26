@@ -4,6 +4,7 @@ import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/filters.dart';
 import 'package:brain2/models/search_item.dart';
 import 'package:brain2/data/mock_search_data.dart';
+import 'package:brain2/screens/bill_category.dart';
 
 class BillsPage extends StatefulWidget {
   const BillsPage({super.key});
@@ -133,7 +134,23 @@ class _BillsPageState extends State<BillsPage> {
                         }
                         final item = _filteredBills[index - 1];
                         return Column(
-                          children: [item.card, const SizedBox(height: 4)],
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => BillCategoryPage(
+                                      categoryTitle: item.title,
+                                    ),
+                                  ),
+                                );
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: item.card,
+                            ),
+                            const SizedBox(height: 4),
+                          ],
                         );
                       },
                     ),

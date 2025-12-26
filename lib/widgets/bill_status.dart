@@ -10,10 +10,12 @@ class BillStatus extends StatelessWidget {
     super.key,
     required this.status,
     this.size = BillStatusSize.large,
+    this.cornerRadius,
   });
 
   final BillStatusType status;
   final BillStatusSize size;
+  final double? cornerRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +44,10 @@ class BillStatus extends StatelessWidget {
     final EdgeInsets padding = isSmall
         ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
         : const EdgeInsets.symmetric(horizontal: 10, vertical: 5);
-    final BorderRadius borderRadius = BorderRadius.circular(isSmall ? 12 : 34);
+    final double defaultRadius = isSmall ? 12 : 34;
+    final BorderRadius borderRadius = BorderRadius.circular(
+      cornerRadius ?? defaultRadius,
+    );
     final double fontSize = isSmall ? 12 : 20;
 
     final String label = switch (status) {

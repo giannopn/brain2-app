@@ -22,6 +22,12 @@ class AppIcons {
   static const String logOut = 'assets/svg_icons/Icons/Log_Out.svg';
   static const String clock = 'assets/svg_icons/Calendar/Clock.svg';
   static const String backArrowBig = 'assets/svg_icons/BackArrowBig.svg';
+  // Interface additions
+  static const String mainComponent =
+      'assets/svg_icons/Interface/Main_Component.svg';
+  // Calendar additions
+  static const String calendarEvent =
+      'assets/svg_icons/Calendar/Calendar_Event.svg';
 
   // Status & Selection icons
   static const String bigCheck = 'assets/svg_icons/Icons/Big_Check.svg';
@@ -36,6 +42,9 @@ class AppIcons {
   static const String creditCard = 'assets/svg_icons/Icons/Credit_card.svg';
   static const String tag = 'assets/svg_icons/Icons/Tag.svg';
   static const String groupUsers = 'assets/svg_icons/Icons/Group_Users.svg';
+
+  // Media icons
+  static const String image02 = 'assets/svg_icons/Media/Image_02.svg';
 
   AppIcons._();
 }

@@ -70,6 +70,8 @@ flutter:
     - assets/svg_icons/
     - assets/svg_icons/Icons/
     - assets/svg_icons/Calendar/
+    - assets/svg_icons/Interface/
+    - assets/svg_icons/Media/
     - assets/svg_icons/Warning/
 
   # An image asset can refer to one or more resolution-specific "variants", see

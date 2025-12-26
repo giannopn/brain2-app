@@ -13,6 +13,9 @@ class SettingsMenu extends StatelessWidget {
     this.rightIcon,
     this.onTap,
     this.width = double.infinity,
+    this.labelColor,
+    this.hideIcon = false,
+    this.rightLabelColor,
   });
 
   final String label;
@@ -23,9 +26,14 @@ class SettingsMenu extends StatelessWidget {
   final Widget? rightIcon;
   final VoidCallback? onTap;
   final double width;
+  final Color? labelColor;
+  final bool hideIcon;
+  final Color? rightLabelColor;
 
   static const double _rowHeight = 52;
-  static const double _padding = 15;
+  // Reduce vertical padding so 24px icons + 18px text can center correctly
+  static const double _paddingH = 15;
+  static const double _paddingV = 9;
   static const Color _background = Color(0xFFF1F1F1);
   static const Color _textColor = Color(0xFF000000);
   static const Color _accentColor = Color(0xFF007AFF);
@@ -70,10 +78,10 @@ class SettingsMenu extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w400,
-              color: _accentColor,
+              color: rightLabelColor ?? _accentColor,
             ),
           )
         : (rightIcon ??
@@ -81,22 +89,26 @@ class SettingsMenu extends StatelessWidget {
 
     final content = Container(
       height: _rowHeight,
-      padding: const EdgeInsets.all(_padding),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _paddingH,
+        vertical: _paddingV,
+      ),
       decoration: BoxDecoration(color: _background, borderRadius: radius),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          leading,
-          const SizedBox(width: 10),
+          if (!hideIcon) leading,
+          if (!hideIcon) const SizedBox(width: 10),
           Expanded(
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.left,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w400,
-                color: _textColor,
+                color: labelColor ?? _textColor,
               ),
             ),
           ),
