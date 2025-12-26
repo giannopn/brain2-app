@@ -3,6 +3,7 @@ import 'package:brain2/widgets/text_top_bar.dart';
 import 'package:brain2/widgets/settings_menu.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:brain2/theme/app_icons.dart';
+import 'package:brain2/screens/add_new_bill.dart';
 import 'package:brain2/screens/create_new_bill_category_page.dart';
 
 class AddPage extends StatefulWidget {
@@ -13,6 +14,13 @@ class AddPage extends StatefulWidget {
 }
 
 class _AddPageState extends State<AddPage> {
+  void _goToAddNewBill(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddNewBillPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,7 +57,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () {},
+                      onTap: () => _goToAddNewBill(context),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -65,7 +73,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () {},
+                      onTap: () => _goToAddNewBill(context),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -81,7 +89,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () {},
+                      onTap: () => _goToAddNewBill(context),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -97,7 +105,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () {},
+                      onTap: () => _goToAddNewBill(context),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -113,7 +121,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () {},
+                      onTap: () => _goToAddNewBill(context),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -129,7 +137,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () {},
+                      onTap: () => _goToAddNewBill(context),
                     ),
 
                     const SizedBox(height: 15),

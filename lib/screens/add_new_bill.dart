@@ -10,7 +10,6 @@ import 'package:brain2/overlays/success_overlay.dart';
 import 'package:brain2/overlays/price_edit.dart';
 import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
-import 'package:brain2/overlays/delete_confirmation_overlay.dart';
 
 class AddNewBillPage extends StatefulWidget {
   const AddNewBillPage({
@@ -45,6 +44,8 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   bool _overlayVisible = false;
   late String _amount;
   late String _deadline;
+  late String _createdOn;
+  ImageProvider? _topPhoto;
   ImageProvider? _photo;
   Size? _photoSize;
 
@@ -52,8 +53,16 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   void initState() {
     super.initState();
     _status = widget.status;
-    _amount = widget.amount;
-    _deadline = widget.deadline;
+
+    // Set amount to 0.00€
+    _amount = '0.00€';
+
+    // Set deadline to one day after today
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    _deadline = _formatDate(tomorrow);
+
+    // Set created on to today
+    _createdOn = _formatDate(DateTime.now());
   }
 
   Future<void> _editAmount(BuildContext context) async {
@@ -116,6 +125,28 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
       'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Future<void> _addTopPhoto(BuildContext context) async {
+    final selection = await showPhotoAddOverlay(context, title: 'Add photo');
+
+    if (selection == null) return;
+
+    if (selection == 'camera') {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Opening camera...')));
+      // TODO: Integrate camera capture flow
+    } else if (selection == 'gallery') {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Opening gallery...')));
+      // TODO: Integrate gallery picker flow
+    }
+
+    setState(() {
+      _topPhoto = const AssetImage('assets/icon/brain2_logo.png');
+    });
   }
 
   Future<void> _addPhoto(BuildContext context) async {
@@ -199,26 +230,6 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDeleteConfirmationOverlay(
-      context,
-      title: 'Delete this bill?',
-      description: 'This action cannot be undone.',
-    );
-
-    if (confirmed == true) {
-      HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Transaction deleted'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      widget.onDelete?.call();
-      Navigator.pop(context);
-    }
-  }
-
   List<Widget> _buildDetailsChildren(BuildContext context) {
     final widgets = <Widget>[];
     widgets.add(
@@ -232,23 +243,59 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
             border: Border.all(color: Colors.grey.shade300, width: 2),
           ),
           child: ClipOval(
-            child: Image.network(
-              'https://via.placeholder.com/100',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey.shade200,
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey.shade400,
+            child: _topPhoto != null
+                ? Image(image: _topPhoto!, fit: BoxFit.cover)
+                : Image.network(
+                    'https://via.placeholder.com/100',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey.shade200,
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey.shade400,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ),
       ),
     );
+
+    widgets.add(const SizedBox(height: 0));
+
+    widgets.add(
+      GestureDetector(
+        onTap: () => _addTopPhoto(context),
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              AppIcons.editPencil,
+              width: 24,
+              height: 24,
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF007AFF),
+                BlendMode.srcIn,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text(
+              'Change icon',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF007AFF),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    widgets.add(const SizedBox(height: 15));
 
     widgets.add(
       _status != BillStatusType.paid
@@ -321,7 +368,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
             place: SettingsMenuPlace.lower,
             icon: SvgPicture.asset(AppIcons.calendar, width: 24, height: 24),
             rightText: true,
-            rightLabel: widget.createdOn,
+            rightLabel: _createdOn,
             rightLabelColor: Colors.black,
           ),
         ],
@@ -399,55 +446,11 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
 
     if (_status == BillStatusType.paid) {
       widgets.add(
-        Column(
-          children: [
-            SettingsMenu(
-              label: 'Mark as unpaid',
-              place: SettingsMenuPlace.upper,
-              hideIcon: true,
-              rightIcon: SvgPicture.asset(
-                AppIcons.arrow,
-                width: 24,
-                height: 24,
-              ),
-              onTap: _toggleStatus,
-            ),
-            const SizedBox(height: 4),
-            SettingsMenu(
-              label: 'Delete this bill',
-              place: SettingsMenuPlace.lower,
-              hideIcon: true,
-              labelColor: const Color(0xFFFF0000),
-              rightIcon: SvgPicture.asset(
-                AppIcons.arrow,
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFFFF0000),
-                  BlendMode.srcIn,
-                ),
-              ),
-              onTap: () => _confirmDelete(context),
-            ),
-          ],
-        ),
-      );
-    } else {
-      widgets.add(
         SettingsMenu(
-          label: 'Delete this bill',
+          label: 'Mark as unpaid',
           hideIcon: true,
-          labelColor: const Color(0xFFFF0000),
-          rightIcon: SvgPicture.asset(
-            AppIcons.arrow,
-            width: 24,
-            height: 24,
-            colorFilter: const ColorFilter.mode(
-              Color(0xFFFF0000),
-              BlendMode.srcIn,
-            ),
-          ),
-          onTap: () => _confirmDelete(context),
+          rightIcon: SvgPicture.asset(AppIcons.arrow, width: 24, height: 24),
+          onTap: _toggleStatus,
         ),
       );
     }
