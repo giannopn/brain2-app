@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:brain2/screens/library_page.dart';
 import 'package:brain2/screens/profile_page.dart';
 import 'package:brain2/screens/search_page.dart';
+import 'package:brain2/screens/bills_page.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
 import 'package:brain2/widgets/navigation_icons.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
@@ -159,8 +160,12 @@ class _HomePageState extends State<HomePage> {
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
                   const SearchPage(),
-              transitionDuration: Duration.zero,
-              reverseTransitionDuration: Duration.zero,
+              transitionDuration: const Duration(milliseconds: 300),
+              reverseTransitionDuration: const Duration(milliseconds: 250),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
             ),
           );
         },
@@ -191,7 +196,14 @@ class _HistorySection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 15),
-            CategoryTitle(title: 'Past', onViewAll: () {}),
+            CategoryTitle(
+              title: 'Past',
+              onViewAll: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const BillsPage()));
+              },
+            ),
             const SizedBox(height: 4),
             const HomePageCard(
               title: 'ΔΕΗ - ΣΠΙΤΙ 2',
@@ -201,7 +213,14 @@ class _HistorySection extends StatelessWidget {
               width: double.infinity,
             ),
             const SizedBox(height: 4),
-            CategoryTitle(title: 'Upcoming', onViewAll: () {}),
+            CategoryTitle(
+              title: 'Upcoming',
+              onViewAll: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const BillsPage()));
+              },
+            ),
             const SizedBox(height: 4),
             const HomePageCard(
               title: 'ΔΕΗ',

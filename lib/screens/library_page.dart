@@ -99,8 +99,12 @@ class _LibraryPageState extends State<LibraryPage> {
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
                   const SearchPage(),
-              transitionDuration: Duration.zero,
-              reverseTransitionDuration: Duration.zero,
+              transitionDuration: const Duration(milliseconds: 300),
+              reverseTransitionDuration: const Duration(milliseconds: 250),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
             ),
           );
         },

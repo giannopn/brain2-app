@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:brain2/widgets/add_button.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/widgets/search_bar.dart' as custom;
 
 enum SearchTopBarVariant { home, searchMode, withBack }
@@ -112,6 +114,10 @@ class SearchTopBar extends StatelessWidget {
   }
 
   Widget _backButton() {
-    return AddButton(rotation: true, onPressed: onBack);
+    // Use the arrow icon for back, matching the Figma design
+    return AddButton(
+      onPressed: onBack,
+      icon: SvgPicture.asset(AppIcons.backArrowBig),
+    );
   }
 }

@@ -67,6 +67,86 @@ final List<SearchItem> mockSearchItems = [
       width: double.infinity,
     ),
   ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
+  const SearchItem(
+    title: 'INTERNET',
+    type: SearchItemType.bill,
+    card: BillsCard(
+      type: BillsCardType.general,
+      title: 'INTERNET',
+      status: BillStatusType.pending,
+      width: double.infinity,
+    ),
+  ),
   // Subscriptions
   const SearchItem(
     title: 'Youtube Premium',

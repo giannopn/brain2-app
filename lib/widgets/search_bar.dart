@@ -60,7 +60,7 @@ class SearchBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              SvgPicture.asset(AppIcons.search, width: 24, height: 24),
+              SvgPicture.asset(AppIcons.searchBig, width: 24, height: 24),
               const SizedBox(width: 8),
               Expanded(
                 child: shouldShowTextField

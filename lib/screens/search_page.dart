@@ -208,8 +208,23 @@ class _SearchPageState extends State<SearchPage> {
                             return const SizedBox(height: 61);
                           }
                           final item = _filteredItems[index - 1];
-                          return Column(
-                            children: [item.card, const SizedBox(height: 4)],
+                          return TweenAnimationBuilder<double>(
+                            key: ValueKey(item.title),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            builder: (context, value, child) {
+                              return Opacity(
+                                opacity: value,
+                                child: Transform.translate(
+                                  offset: Offset(0, 20 * (1 - value)),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Column(
+                              children: [item.card, const SizedBox(height: 4)],
+                            ),
                           );
                         },
                       ),
