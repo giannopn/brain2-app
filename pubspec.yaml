@@ -54,7 +54,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon/brain2_logo.png"
+  image_path: "assets/icon/brain2_logo_small_centered.png"
 
 # The following section is specific to Flutter packages.
 flutter:
