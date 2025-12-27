@@ -41,6 +41,11 @@ class _PriceEditOverlayState extends State<PriceEditOverlay> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _focusNode.requestFocus();
+        // Select all text so typing replaces it
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
       }
     });
   }

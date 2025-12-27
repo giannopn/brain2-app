@@ -7,9 +7,11 @@ import 'package:brain2/widgets/settings_menu.dart';
 import 'package:brain2/widgets/bill_status_menu.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/overlays/success_overlay.dart';
+import 'package:brain2/overlays/created_overlay.dart';
 import 'package:brain2/overlays/price_edit.dart';
 import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
+import 'package:brain2/screens/home_page.dart';
 
 class AddNewBillPage extends StatefulWidget {
   const AddNewBillPage({
@@ -42,12 +44,15 @@ class AddNewBillPage extends StatefulWidget {
 class _AddNewBillPageState extends State<AddNewBillPage> {
   late BillStatusType _status;
   bool _overlayVisible = false;
+  bool _createdOverlayVisible = false;
   late String _amount;
   late String _deadline;
+  late DateTime _deadlineDate;
   late String _createdOn;
-  ImageProvider? _topPhoto;
+  late DateTime _createdOnDate;
   ImageProvider? _photo;
   Size? _photoSize;
+  bool _hasInitializedFlow = false;
 
   @override
   void initState() {
@@ -59,10 +64,21 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
 
     // Set deadline to one day after today
     final tomorrow = DateTime.now().add(const Duration(days: 1));
+    _deadlineDate = tomorrow;
     _deadline = _formatDate(tomorrow);
 
     // Set created on to today
-    _createdOn = _formatDate(DateTime.now());
+    final today = DateTime.now();
+    _createdOnDate = today;
+    _createdOn = _formatDate(today);
+
+    // Start initial flow on first load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasInitializedFlow) {
+        _hasInitializedFlow = true;
+        _startInitialFlow();
+      }
+    });
   }
 
   Future<void> _editAmount(BuildContext context) async {
@@ -86,12 +102,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   }
 
   Future<void> _editDeadline(BuildContext context) async {
-    DateTime initialDate;
-    try {
-      initialDate = DateTime.parse(_deadline);
-    } catch (e) {
-      initialDate = DateTime.now();
-    }
+    DateTime initialDate = _deadlineDate;
 
     final updated = await showCalendarOverlay(
       context,
@@ -104,8 +115,28 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
       if (formatter != _deadline) {
         setState(() {
           _deadline = formatter;
+          _deadlineDate = updated;
+          _updateStatusBasedOnDeadline();
         });
       }
+    }
+  }
+
+  void _updateStatusBasedOnDeadline() {
+    if (_status != BillStatusType.paid) {
+      if (_deadlineDate.isBefore(_createdOnDate)) {
+        _status = BillStatusType.overdue;
+      } else {
+        _status = BillStatusType.pending;
+      }
+    }
+  }
+
+  void _forceUpdateStatusBasedOnDeadline() {
+    if (_deadlineDate.isBefore(_createdOnDate)) {
+      _status = BillStatusType.overdue;
+    } else {
+      _status = BillStatusType.pending;
     }
   }
 
@@ -127,26 +158,52 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  Future<void> _addTopPhoto(BuildContext context) async {
-    final selection = await showPhotoAddOverlay(context, title: 'Add photo');
+  Future<void> _startInitialFlow() async {
+    // Step 1: Prompt for amount
+    await _editAmountInitial(context);
+  }
 
-    if (selection == null) return;
+  Future<void> _editAmountInitial(BuildContext context) async {
+    final currentValue = _amount.replaceAll('€', '').trim();
 
-    if (selection == 'camera') {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Opening camera...')));
-      // TODO: Integrate camera capture flow
-    } else if (selection == 'gallery') {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Opening gallery...')));
-      // TODO: Integrate gallery picker flow
+    // If amount is 0.00, start with empty field for easier input
+    final initialValue = currentValue == '0.00' ? '' : currentValue;
+
+    final updated = await showPriceEditOverlay(
+      context,
+      title: 'Amount',
+      initialValue: initialValue,
+      hintText: '',
+    );
+
+    if (updated != null && updated.isNotEmpty) {
+      final formattedAmount = '${updated}€';
+      setState(() {
+        _amount = formattedAmount;
+      });
+      // Step 2: After amount is set, prompt for deadline
+      await _editDeadlineInitial(context);
     }
+  }
 
-    setState(() {
-      _topPhoto = const AssetImage('assets/icon/brain2_logo.png');
-    });
+  Future<void> _editDeadlineInitial(BuildContext context) async {
+    DateTime initialDate = _deadlineDate;
+
+    final updated = await showCalendarOverlay(
+      context,
+      title: 'Deadline',
+      initialDate: initialDate,
+    );
+
+    if (updated != null) {
+      final formatter = _formatDate(updated);
+      setState(() {
+        _deadline = formatter;
+        _deadlineDate = updated;
+        _updateStatusBasedOnDeadline();
+      });
+      // Initial flow complete
+    }
   }
 
   Future<void> _addPhoto(BuildContext context) async {
@@ -243,54 +300,20 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
             border: Border.all(color: Colors.grey.shade300, width: 2),
           ),
           child: ClipOval(
-            child: _topPhoto != null
-                ? Image(image: _topPhoto!, fit: BoxFit.cover)
-                : Image.network(
-                    'https://via.placeholder.com/100',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey.shade200,
-                        child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey.shade400,
-                        ),
-                      );
-                    },
+            child: Image.network(
+              'https://via.placeholder.com/100',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey.shade200,
+                  child: Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey.shade400,
                   ),
+                );
+              },
+            ),
           ),
-        ),
-      ),
-    );
-
-    widgets.add(const SizedBox(height: 0));
-
-    widgets.add(
-      GestureDetector(
-        onTap: () => _addTopPhoto(context),
-        behavior: HitTestBehavior.opaque,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SvgPicture.asset(
-              AppIcons.editPencil,
-              width: 24,
-              height: 24,
-              colorFilter: const ColorFilter.mode(
-                Color(0xFF007AFF),
-                BlendMode.srcIn,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Text(
-              'Change icon',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF007AFF),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -476,7 +499,8 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
     } else {
       HapticFeedback.mediumImpact();
       setState(() {
-        _status = BillStatusType.pending;
+        // Re-evaluate status based on deadline when marking as unpaid
+        _forceUpdateStatusBasedOnDeadline();
       });
       widget.onMarkAsPaid?.call();
     }
@@ -491,10 +515,26 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
           Column(
             children: [
               TextTopBar(
-                variant: TextTopBarVariant.doneInactive,
+                variant: TextTopBarVariant.defaultActive,
                 title: 'Add new bill',
                 onBack: widget.onBack ?? () => Navigator.pop(context),
-                onAddPressed: () {},
+                onAddPressed: () {
+                  HapticFeedback.mediumImpact();
+                  setState(() {
+                    _createdOverlayVisible = true;
+                  });
+                  Future.delayed(const Duration(milliseconds: 800), () {
+                    if (mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomePage(),
+                        ),
+                        (route) => false,
+                      );
+                    }
+                  });
+                },
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -515,6 +555,14 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
             curve: Curves.easeInOut,
             child: _overlayVisible
                 ? const SuccessOverlay()
+                : const SizedBox.shrink(),
+          ),
+          AnimatedOpacity(
+            opacity: _createdOverlayVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: _createdOverlayVisible
+                ? const CreatedOverlay()
                 : const SizedBox.shrink(),
           ),
         ],
