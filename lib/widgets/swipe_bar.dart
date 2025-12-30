@@ -45,7 +45,7 @@ class _SwipeBarState extends State<SwipeBar> {
 
     // The circle can move from _circlePadding to (_barWidth - _circleSize - _circlePadding)
     final minDragPosition = _circlePadding;
-    final maxDragPosition = _barWidth - _circleSize - _circlePadding - 20;
+    final maxDragPosition = _barWidth - _circleSize - _circlePadding;
 
     // Clamp the touch position to the valid dragging range
     final clampedDx = localPosition.dx.clamp(minDragPosition, maxDragPosition);

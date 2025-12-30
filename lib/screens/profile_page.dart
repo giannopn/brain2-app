@@ -6,6 +6,7 @@ import 'package:brain2/screens/about_page.dart';
 import 'package:brain2/screens/help_feedback_page.dart';
 import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/screens/bills_page.dart';
+import 'package:brain2/screens/notifications_settings.dart';
 import 'package:brain2/overlays/delete_confirmation_swipe.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
@@ -142,6 +143,13 @@ class _ProfilePageState extends State<ProfilePage>
                     width: 24,
                     height: 24,
                   ),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationsSettings(),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 // Settings Menu Items - Second Group
