@@ -38,7 +38,6 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   // Typography
-  static const double _fontSizeChangePhoto = 18;
   static const double _fontSizeLabel = 18;
   static const double _fontSizeValue = 18;
   static const double _fontSizeSignedIn = 18;
@@ -57,7 +56,6 @@ class _AccountPageState extends State<AccountPage> {
   static const double _contentHorizontalPadding = 15;
   static const double _contentVerticalPadding = 15;
   static const double _sectionGap = 24;
-  static const double _changePhotoGap = 6;
   static const double _menuItemHeight = 52;
 
   @override
