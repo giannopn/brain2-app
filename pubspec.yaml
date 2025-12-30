@@ -76,6 +76,7 @@ flutter:
     - assets/svg_icons/Warning/
     - assets/svg_icons/System/
     - assets/svg_icons/File/
+    - assets/svg_icons/Communication/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

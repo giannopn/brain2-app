@@ -25,6 +25,9 @@ class AppIcons {
   // Interface additions
   static const String mainComponent =
       'assets/svg_icons/Interface/Main_Component.svg';
+  static const String externalLink =
+      'assets/svg_icons/Interface/External_Link.svg';
+  static const String star = 'assets/svg_icons/Interface/Star.svg';
   // Edit icons
   static const String editPencil = 'assets/svg_icons/Edit/Edit_Pencil_01.svg';
   // Calendar additions
@@ -53,6 +56,10 @@ class AppIcons {
 
   // Media icons
   static const String image02 = 'assets/svg_icons/Media/Image_02.svg';
+
+  // Communication icons
+  static const String shareIosExport =
+      'assets/svg_icons/Communication/Share_iOS_Export.svg';
 
   AppIcons._();
 }

@@ -24,6 +24,7 @@ class SearchTopBar extends StatelessWidget {
     this.paddingTop = _paddingTop,
     this.paddingBottom = _paddingBottom,
     this.centerTitle,
+    this.hideAddButton = false,
   });
 
   final SearchTopBarVariant variant;
@@ -40,6 +41,7 @@ class SearchTopBar extends StatelessWidget {
   final double paddingTop;
   final double paddingBottom;
   final String? centerTitle;
+  final bool hideAddButton;
 
   static const double _paddingH = 15;
   static const double _paddingTop = 68;
@@ -50,7 +52,9 @@ class SearchTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (centerTitle != null && variant == SearchTopBarVariant.withBack) {
-      return _wrapWithCenteredTitle(children: [_backButton(), _addButton()]);
+      return _wrapWithCenteredTitle(
+        children: [_backButton(), if (!hideAddButton) _addButton()],
+      );
     }
     switch (variant) {
       case SearchTopBarVariant.searchMode:
