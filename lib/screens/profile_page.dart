@@ -5,7 +5,7 @@ import 'package:brain2/screens/account_page.dart';
 import 'package:brain2/screens/about_page.dart';
 import 'package:brain2/screens/help_feedback_page.dart';
 import 'package:brain2/screens/home_page.dart';
-import 'package:brain2/screens/library_page.dart';
+import 'package:brain2/screens/bills_page.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
 import 'package:brain2/widgets/navigation_icons.dart';
@@ -207,7 +207,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Navigator.of(context).push(
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) =>
-                    const LibraryPage(),
+                    const BillsPage(),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
               ),

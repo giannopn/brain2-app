@@ -6,6 +6,10 @@ import 'package:brain2/models/search_item.dart';
 import 'package:brain2/data/mock_search_data.dart';
 import 'package:brain2/screens/bill_category.dart';
 import 'package:brain2/screens/add_page.dart';
+import 'package:brain2/screens/home_page.dart';
+import 'package:brain2/screens/profile_page.dart';
+import 'package:brain2/widgets/navigation_bar.dart' as custom;
+import 'package:brain2/widgets/navigation_icons.dart';
 
 class BillsPage extends StatefulWidget {
   const BillsPage({super.key});
@@ -17,12 +21,30 @@ class BillsPage extends StatefulWidget {
 class _BillsPageState extends State<BillsPage> {
   FilterActive _activeFilter = FilterActive.all;
   List<SearchItem> _filteredBills = [];
-  bool _showFiltersBorder = false;
+  int _navIndex = 1; // Library tab active
+  bool _showTopBorder = false;
+  static double _savedScrollOffset = 0.0;
+  late final ScrollController _scrollController = ScrollController(
+    initialScrollOffset: _savedScrollOffset,
+  );
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     _filterBills();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _savedScrollOffset = _scrollController.offset;
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    _savedScrollOffset = _scrollController.offset;
   }
 
   void _filterBills() {
@@ -71,22 +93,10 @@ class _BillsPageState extends State<BillsPage> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          SearchTopBar(
-            variant: SearchTopBarVariant.withBack,
-            onBack: () => Navigator.of(context).pop(),
-            onAdd: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (context) => const AddPage()));
-            },
-            onSearchTap: () {
-              // Handle search tap
-            },
-            width: double.infinity,
-          ),
+          _buildTopBar(),
           Container(
             decoration: BoxDecoration(
-              border: _showFiltersBorder
+              border: _showTopBorder
                   ? const Border(
                       bottom: BorderSide(color: Color(0xFFF1F1F1), width: 1),
                     )
@@ -106,9 +116,9 @@ class _BillsPageState extends State<BillsPage> {
           Expanded(
             child: NotificationListener<ScrollNotification>(
               onNotification: (notification) {
-                final bool isScrolled = notification.metrics.pixels > 0;
-                if (isScrolled != _showFiltersBorder) {
-                  setState(() => _showFiltersBorder = isScrolled);
+                final bool isScrolled = notification.metrics.pixels > 15;
+                if (isScrolled != _showTopBorder) {
+                  setState(() => _showTopBorder = isScrolled);
                 }
                 return false;
               },
@@ -126,6 +136,7 @@ class _BillsPageState extends State<BillsPage> {
                       ),
                     )
                   : ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 15),
                       itemCount: _filteredBills.length + 2,
                       itemBuilder: (context, index) {
@@ -161,6 +172,80 @@ class _BillsPageState extends State<BillsPage> {
           ),
         ],
       ),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return SearchTopBar(
+      variant: SearchTopBarVariant.home,
+      onAdd: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (context) => const AddPage()));
+      },
+      onSearchTap: () {
+        // Handle search tap
+      },
+      width: double.infinity,
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return custom.NavigationBar(
+      items: const [
+        custom.NavigationBarItem(type: NavigationIconType.home, label: 'Home'),
+        custom.NavigationBarItem(
+          type: NavigationIconType.library,
+          label: 'Library',
+        ),
+        custom.NavigationBarItem(
+          type: NavigationIconType.profile,
+          label: 'Profile',
+        ),
+      ],
+      activeIndex: _navIndex,
+      onItemSelected: (index) {
+        if (index == 0) {
+          _savedScrollOffset = _scrollController.hasClients
+              ? _scrollController.offset
+              : _savedScrollOffset;
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const HomePage(),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
+        } else if (index == 1) {
+          // Already on library/bills page
+          if (_scrollController.hasClients) {
+            _scrollController
+                .animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                )
+                .then((_) {
+                  _savedScrollOffset = 0;
+                  setState(() => _showTopBorder = false);
+                });
+          }
+        } else if (index == 2) {
+          _savedScrollOffset = _scrollController.hasClients
+              ? _scrollController.offset
+              : _savedScrollOffset;
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const ProfilePage(),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          );
+        }
+      },
     );
   }
 }

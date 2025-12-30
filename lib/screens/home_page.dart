@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:brain2/screens/library_page.dart';
 import 'package:brain2/screens/profile_page.dart';
 import 'package:brain2/screens/search_page.dart';
 import 'package:brain2/screens/bills_page.dart';
@@ -10,7 +9,6 @@ import 'package:brain2/widgets/navigation_icons.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/category_title.dart';
 import 'package:brain2/widgets/home_page_cards.dart';
-import 'package:brain2/widgets/subscriptions_summary.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -68,9 +66,6 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _HistorySection(horizontalPadding: horizontalPadding),
-                      _SubscriptionsSection(
-                        horizontalPadding: horizontalPadding,
-                      ),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -121,7 +116,7 @@ class _HomePageState extends State<HomePage> {
             Navigator.of(context).push(
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) =>
-                    const LibraryPage(),
+                    const BillsPage(),
                 transitionDuration: Duration.zero,
                 reverseTransitionDuration: Duration.zero,
               ),
@@ -192,9 +187,6 @@ class _HistorySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF1F1F1), width: 1)),
-      ),
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
         child: Column(
@@ -282,39 +274,6 @@ class _HistorySection extends StatelessWidget {
             const SizedBox(height: 15),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SubscriptionsSection extends StatelessWidget {
-  const _SubscriptionsSection({required this.horizontalPadding});
-
-  final double horizontalPadding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        horizontalPadding,
-        15,
-        horizontalPadding,
-        15,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CategoryTitle(title: 'Subscriptions', onViewAll: () {}),
-          const SizedBox(height: 4),
-          SubscriptionsSummary(
-            width: double.infinity,
-            activeCount: 4,
-            amount: '-36',
-            periodLabel: 'per month',
-            indicatorCount: 4,
-            indicatorColor: const Color(0xFF2EA39A),
-          ),
-        ],
       ),
     );
   }

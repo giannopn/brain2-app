@@ -24,14 +24,9 @@ class DeleteConfirmationSwipeOverlay extends StatefulWidget {
 
 class _DeleteConfirmationSwipeOverlayState
     extends State<DeleteConfirmationSwipeOverlay> {
-  bool _isConfirmed = false;
-
   void _onSwipeEnd(double progress) {
     if (progress >= 0.95) {
       // Swiped to the end (95% or more)
-      setState(() {
-        _isConfirmed = true;
-      });
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           Navigator.of(context).pop(true);
