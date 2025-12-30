@@ -300,8 +300,8 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
             border: Border.all(color: Colors.grey.shade300, width: 2),
           ),
           child: ClipOval(
-            child: Image.network(
-              'https://via.placeholder.com/100',
+            child: Image.asset(
+              AppIcons.billDefaultIcon,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
@@ -314,6 +314,20 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
               },
             ),
           ),
+        ),
+      ),
+    );
+
+    widgets.add(const SizedBox(height: 0));
+
+    // Bill name title
+    widgets.add(
+      Text(
+        widget.categoryTitle,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.black,
         ),
       ),
     );

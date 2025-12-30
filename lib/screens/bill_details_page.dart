@@ -240,8 +240,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
             border: Border.all(color: Colors.grey.shade300, width: 2),
           ),
           child: ClipOval(
-            child: Image.network(
-              'https://via.placeholder.com/100',
+            child: Image.asset(
+              AppIcons.billDefaultIcon,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
@@ -505,6 +505,7 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
                 variant: SearchTopBarVariant.withBack,
                 centerTitle: widget.categoryTitle,
                 onBack: widget.onBack ?? () => Navigator.pop(context),
+                hideAddButton: true,
                 paddingTop: 68,
                 paddingBottom: 10,
                 paddingHorizontal: 15,

@@ -61,5 +61,9 @@ class AppIcons {
   static const String shareIosExport =
       'assets/svg_icons/Communication/Share_iOS_Export.svg';
 
+  // PNG assets
+  static const String billDefaultIcon =
+      'assets/png_photos/bill_deafult_icon.svg';
+
   AppIcons._();
 }

@@ -14,10 +14,12 @@ class AddPage extends StatefulWidget {
 }
 
 class _AddPageState extends State<AddPage> {
-  void _goToAddNewBill(BuildContext context) {
+  void _goToAddNewBill(BuildContext context, String categoryName) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AddNewBillPage()),
+      MaterialPageRoute(
+        builder: (context) => AddNewBillPage(categoryTitle: categoryName),
+      ),
     );
   }
 
@@ -57,7 +59,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () => _goToAddNewBill(context),
+                      onTap: () => _goToAddNewBill(context, 'ΔΕΗ'),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -73,7 +75,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () => _goToAddNewBill(context),
+                      onTap: () => _goToAddNewBill(context, 'ΕΥΔΑΠ'),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -89,7 +91,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () => _goToAddNewBill(context),
+                      onTap: () => _goToAddNewBill(context, 'ΚΟΙΝΟΧΡΗΣΤΑ'),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -105,7 +107,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () => _goToAddNewBill(context),
+                      onTap: () => _goToAddNewBill(context, 'ΦΥΣΙΚΟ ΑΕΡΙΟ'),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -121,7 +123,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () => _goToAddNewBill(context),
+                      onTap: () => _goToAddNewBill(context, 'ΔΕΗ - ΣΠΙΤΙ 2'),
                     ),
                     const SizedBox(height: 4),
                     SettingsMenu(
@@ -137,7 +139,7 @@ class _AddPageState extends State<AddPage> {
                         width: 24,
                         height: 24,
                       ),
-                      onTap: () => _goToAddNewBill(context),
+                      onTap: () => _goToAddNewBill(context, 'INTERNET'),
                     ),
 
                     const SizedBox(height: 15),

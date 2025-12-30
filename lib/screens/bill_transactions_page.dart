@@ -85,7 +85,7 @@ class BillTransactionsPage extends StatelessWidget {
             variant: SearchTopBarVariant.withBack,
             centerTitle: categoryTitle,
             onBack: onBack ?? () => Navigator.pop(context),
-            onAdd: onAdd,
+            hideAddButton: true,
             paddingTop: 68,
             paddingBottom: 10,
             paddingHorizontal: 15,

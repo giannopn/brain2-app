@@ -197,8 +197,8 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                           child: ClipOval(
                             child: _photo != null
                                 ? Image(image: _photo!, fit: BoxFit.cover)
-                                : Image.network(
-                                    'https://via.placeholder.com/100',
+                                : Image.asset(
+                                    AppIcons.billDefaultIcon,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
