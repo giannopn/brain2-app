@@ -49,7 +49,6 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   late String _deadline;
   late DateTime _deadlineDate;
   late String _createdOn;
-  late DateTime _createdOnDate;
   ImageProvider? _photo;
   Size? _photoSize;
   bool _hasInitializedFlow = false;
@@ -69,7 +68,6 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
 
     // Set created on to today
     final today = DateTime.now();
-    _createdOnDate = today;
     _createdOn = _formatDate(today);
 
     // Start initial flow on first load
@@ -124,7 +122,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
 
   void _updateStatusBasedOnDeadline() {
     if (_status != BillStatusType.paid) {
-      if (_deadlineDate.isBefore(_createdOnDate)) {
+      if (_deadlineDate.isBefore(DateTime.now())) {
         _status = BillStatusType.overdue;
       } else {
         _status = BillStatusType.pending;
@@ -133,7 +131,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   }
 
   void _forceUpdateStatusBasedOnDeadline() {
-    if (_deadlineDate.isBefore(_createdOnDate)) {
+    if (_deadlineDate.isBefore(DateTime.now())) {
       _status = BillStatusType.overdue;
     } else {
       _status = BillStatusType.pending;

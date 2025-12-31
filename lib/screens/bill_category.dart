@@ -325,7 +325,7 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                           title: _name,
                           subtitle: '6 October 2025',
                           amount: '-37.58€',
-                          status: BillStatusType.paid,
+                          status: BillStatusType.overdue,
                           width: double.infinity,
                           onTap: () {
                             Navigator.push(
@@ -334,7 +334,7 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                                 builder: (context) => BillDetailsPage(
                                   categoryTitle: _name,
                                   amount: '-37.58€',
-                                  status: BillStatusType.paid,
+                                  status: BillStatusType.overdue,
                                   deadline: '6 October 2025',
                                   createdOn: '1 Nov 2025',
                                 ),

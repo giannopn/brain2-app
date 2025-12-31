@@ -45,6 +45,7 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   bool _overlayVisible = false;
   late String _amount;
   late String _deadline;
+  late DateTime _deadlineDate;
   ImageProvider? _photo;
   Size? _photoSize;
 
@@ -54,6 +55,13 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     _status = widget.status;
     _amount = widget.amount;
     _deadline = widget.deadline;
+
+    // Parse deadline to DateTime
+    try {
+      _deadlineDate = _parseDate(widget.deadline);
+    } catch (e) {
+      _deadlineDate = DateTime.now();
+    }
   }
 
   Future<void> _editAmount(BuildContext context) async {
@@ -79,14 +87,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   }
 
   Future<void> _editDeadline(BuildContext context) async {
-    // Parse the deadline string to DateTime
-    // Expecting format like "20 Nov 2025"
-    DateTime initialDate;
-    try {
-      initialDate = DateTime.parse(_deadline);
-    } catch (e) {
-      initialDate = DateTime.now();
-    }
+    // Use the _deadlineDate if available, otherwise try to parse _deadline
+    DateTime initialDate = _deadlineDate;
 
     final updated = await showCalendarOverlay(
       context,
@@ -100,6 +102,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
       if (formatter != _deadline) {
         setState(() {
           _deadline = formatter;
+          _deadlineDate = updated;
+          _updateStatusBasedOnDeadline();
         });
       }
     }
@@ -121,6 +125,52 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
       'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  DateTime _parseDate(String dateStr) {
+    // Parse format like "20 Nov 2025"
+    final months = {
+      'Jan': 1,
+      'Feb': 2,
+      'Mar': 3,
+      'Apr': 4,
+      'May': 5,
+      'Jun': 6,
+      'Jul': 7,
+      'Aug': 8,
+      'Sep': 9,
+      'Oct': 10,
+      'Nov': 11,
+      'Dec': 12,
+    };
+
+    final parts = dateStr.split(' ');
+    if (parts.length == 3) {
+      final day = int.parse(parts[0]);
+      final month = months[parts[1]] ?? 1;
+      final year = int.parse(parts[2]);
+      return DateTime(year, month, day);
+    }
+
+    return DateTime.now();
+  }
+
+  void _updateStatusBasedOnDeadline() {
+    if (_status != BillStatusType.paid) {
+      if (_deadlineDate.isBefore(DateTime.now())) {
+        _status = BillStatusType.overdue;
+      } else {
+        _status = BillStatusType.pending;
+      }
+    }
+  }
+
+  void _forceUpdateStatusBasedOnDeadline() {
+    if (_deadlineDate.isBefore(DateTime.now())) {
+      _status = BillStatusType.overdue;
+    } else {
+      _status = BillStatusType.pending;
+    }
   }
 
   Future<void> _addPhoto(BuildContext context) async {
@@ -487,7 +537,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     } else {
       HapticFeedback.mediumImpact();
       setState(() {
-        _status = BillStatusType.pending;
+        // Re-evaluate status based on deadline when marking as unpaid
+        _forceUpdateStatusBasedOnDeadline();
       });
       widget.onMarkAsPaid?.call();
     }
