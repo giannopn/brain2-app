@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:brain2/screens/account_page.dart';
 import 'package:brain2/screens/about_page.dart';
@@ -29,6 +30,10 @@ class _ProfilePageState extends State<ProfilePage>
   String _syncLabel = 'Sync';
   AnimationController? _syncAnimationController;
 
+  String _displayName = '';
+  String _email = '';
+  bool _isLoadingProfile = true;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +41,37 @@ class _ProfilePageState extends State<ProfilePage>
       vsync: this,
       duration: const Duration(seconds: 2),
     );
+
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final response = await Supabase.instance.client
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .single();
+
+        if (mounted) {
+          setState(() {
+            _displayName = response['display_name'] ?? 'User';
+            _email = response['email'] ?? user.email ?? '';
+            _isLoadingProfile = false;
+          });
+        }
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
+          _displayName = 'User';
+          _email = Supabase.instance.client.auth.currentUser?.email ?? '';
+        });
+      }
+    }
   }
 
   @override
@@ -80,11 +116,13 @@ class _ProfilePageState extends State<ProfilePage>
                 // Profile Info Section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
-                  child: ProfileInfo(
-                    name: 'Jensen Huang',
-                    email: 'jensenhuang@gmail.com',
-                    isDemoMode: true,
-                  ),
+                  child: _isLoadingProfile
+                      ? const Center(child: CircularProgressIndicator())
+                      : ProfileInfo(
+                          name: _displayName,
+                          email: _email,
+                          isDemoMode: false,
+                        ),
                 ),
                 const SizedBox(height: 24),
                 // Consistency Bar Section
@@ -232,8 +270,15 @@ class _ProfilePageState extends State<ProfilePage>
                       confirmText: 'Swipe to confirm',
                     );
                     if (confirmed == true && mounted) {
-                      // Perform log out action
-                      // Navigator.of(context).pop();
+                      // Log out the user
+                      await Supabase.instance.client.auth.signOut();
+
+                      // Pop all routes and return to AuthGate (root)
+                      if (mounted) {
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst);
+                      }
                     }
                   },
                 ),
