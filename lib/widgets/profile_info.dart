@@ -123,7 +123,7 @@ class ProfileInfo extends StatelessWidget {
           _getInitials(name),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 40,
+            fontSize: 28,
             fontWeight: FontWeight.w600,
             fontFamily: 'Inter',
           ),

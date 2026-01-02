@@ -5,6 +5,8 @@ import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/overlays/text_edit.dart';
 import 'package:brain2/overlays/delete_confirmation_swipe.dart';
+import 'package:brain2/data/profile_repository.dart';
+import 'package:brain2/models/profile.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -14,26 +16,82 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  late String _name;
+  Profile? _profile;
+  bool _isLoading = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _name = 'Jensen Huang';
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final cached = ProfileRepository.instance.cachedProfile;
+    if (cached != null && mounted) {
+      setState(() {
+        _profile = cached;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final fetched = await ProfileRepository.instance.fetchProfile(
+        forceRefresh: true,
+      );
+      if (mounted) {
+        setState(() {
+          _profile = fetched;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _editName(BuildContext context) async {
+    if (_profile == null) return;
+
     final updated = await showTextEditOverlay(
       context,
       title: 'Edit name',
-      initialValue: _name,
+      initialValue: _profile?.displayName ?? '',
       hintText: 'Enter a name',
     );
 
-    if (updated != null && updated.isNotEmpty && updated != _name) {
+    if (updated != null &&
+        updated.isNotEmpty &&
+        updated != _profile?.displayName) {
       setState(() {
-        _name = updated;
+        _isSaving = true;
       });
+
+      try {
+        final newProfile = await ProfileRepository.instance.updateDisplayName(
+          updated,
+        );
+        if (mounted) {
+          setState(() {
+            _profile = newProfile ?? _profile;
+            _isSaving = false;
+          });
+          if (newProfile != null) {
+            ProfileRepository.instance.setCache(newProfile);
+          }
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+          });
+        }
+      }
     }
   }
 
@@ -60,6 +118,9 @@ class _AccountPageState extends State<AccountPage> {
 
   @override
   Widget build(BuildContext context) {
+    final name = _profile?.displayName ?? '';
+    final email = _profile?.email ?? '';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -83,154 +144,163 @@ class _AccountPageState extends State<AccountPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Profile Photo
-                  Container(
-                    width: _photoSize,
-                    height: _photoSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _blueColor,
-                    ),
-                    child: Center(
-                      child: Text(
-                        'JH',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 40,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Inter',
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(),
+                    )
+                  else ...[
+                    // Profile Photo
+                    Container(
+                      width: _photoSize,
+                      height: _photoSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _blueColor,
+                      ),
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty
+                              ? name.substring(0, 1).toUpperCase()
+                              : '',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 40,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Inter',
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: _sectionGap),
-                  // Name Field
-                  Container(
-                    width: 400,
-                    height: _menuItemHeight,
-                    decoration: BoxDecoration(
-                      color: _bgColor,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Name',
-                            style: TextStyle(
-                              fontSize: _fontSizeLabel,
-                              fontWeight: FontWeight.w400,
-                              color: _textColor,
-                              fontFamily: 'Inter',
-                              height: 1,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => _editName(context),
-                            child: Text(
-                              _name,
+                    SizedBox(height: _sectionGap),
+                    // Name Field
+                    Container(
+                      width: 400,
+                      height: _menuItemHeight,
+                      decoration: BoxDecoration(
+                        color: _bgColor,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Name',
                               style: TextStyle(
-                                fontSize: _fontSizeValue,
+                                fontSize: _fontSizeLabel,
                                 fontWeight: FontWeight.w400,
-                                color: _blueColor,
+                                color: _textColor,
                                 fontFamily: 'Inter',
                                 height: 1,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: _sectionGap),
-                  // Delete Account Button
-                  Container(
-                    width: double.infinity,
-                    height: _menuItemHeight,
-                    decoration: BoxDecoration(
-                      color: _bgColor,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(18),
-                        onTap: () async {
-                          final confirmed =
-                              await showDeleteConfirmationSwipeOverlay(
-                                context,
-                                title: 'Delete Account?',
-                                description:
-                                    'Deleting your account is permanent. You will immediately lose access to all your data. Are you sure?',
-                                confirmText: 'Swipe to confirm',
-                              );
-                          if (confirmed == true && mounted) {
-                            // Perform delete account action
-                            Navigator.of(context).pop();
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 15),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Delete Account',
+                            GestureDetector(
+                              onTap: () => _editName(context),
+                              child: Text(
+                                _isSaving ? 'Saving...' : name,
                                 style: TextStyle(
-                                  fontSize: _fontSizeDeleteAccount,
+                                  fontSize: _fontSizeValue,
                                   fontWeight: FontWeight.w400,
-                                  color: _redColor,
+                                  color: _blueColor,
                                   fontFamily: 'Inter',
                                   height: 1,
                                 ),
                               ),
-                              SvgPicture.asset(
-                                AppIcons.arrow,
-                                width: 24,
-                                height: 24,
-                                colorFilter: const ColorFilter.mode(
-                                  _redColor,
-                                  BlendMode.srcIn,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: _sectionGap),
+                    // Delete Account Button
+                    Container(
+                      width: double.infinity,
+                      height: _menuItemHeight,
+                      decoration: BoxDecoration(
+                        color: _bgColor,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () async {
+                            final confirmed =
+                                await showDeleteConfirmationSwipeOverlay(
+                                  context,
+                                  title: 'Delete Account?',
+                                  description:
+                                      'Deleting your account is permanent. You will immediately lose access to all your data. Are you sure?',
+                                  confirmText: 'Swipe to confirm',
+                                );
+                            if (confirmed == true && mounted) {
+                              // Perform delete account action
+                              Navigator.of(context).pop();
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Delete Account',
+                                  style: TextStyle(
+                                    fontSize: _fontSizeDeleteAccount,
+                                    fontWeight: FontWeight.w400,
+                                    color: _redColor,
+                                    fontFamily: 'Inter',
+                                    height: 1,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                SvgPicture.asset(
+                                  AppIcons.arrow,
+                                  width: 24,
+                                  height: 24,
+                                  colorFilter: const ColorFilter.mode(
+                                    _redColor,
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: _sectionGap),
-                  // Account Info
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Signed in with Apple Account',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: _fontSizeSignedIn,
-                          fontWeight: FontWeight.w400,
-                          color: _greyTextColor,
-                          fontFamily: 'Inter',
-                          height: 1,
+                    SizedBox(height: _sectionGap),
+                    // Account Info
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Signed in with Apple Account',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: _fontSizeSignedIn,
+                            fontWeight: FontWeight.w400,
+                            color: _greyTextColor,
+                            fontFamily: 'Inter',
+                            height: 1,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'jensenhuang@gmail.com',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: _fontSizeEmail,
-                          fontWeight: FontWeight.w400,
-                          color: _greyTextColor,
-                          fontFamily: 'Inter',
-                          height: 1,
+                        const SizedBox(height: 4),
+                        Text(
+                          email,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: _fontSizeEmail,
+                            fontWeight: FontWeight.w400,
+                            color: _greyTextColor,
+                            fontFamily: 'Inter',
+                            height: 1,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -28,68 +28,87 @@ class ConsistencyBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate the width of the progress bar based on consistency score
-    final progressWidth = (_barWidth / 100) * consistencyScore;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Reserve space for the numeric score on the right
+        const double scoreWidth = 64; // fits 3 digits comfortably
+        final double availableWidth = (constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : _barWidth + scoreWidth + _gapBetweenBarAndScore);
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Left section: Label and progress bar
-        Column(
+        // Cap the bar width to available space minus the score and gap
+        final double maxBarWidth =
+            (availableWidth - scoreWidth - _gapBetweenBarAndScore).clamp(
+              80,
+              _barWidth,
+            );
+
+        final double progressWidth = (maxBarWidth / 100) * consistencyScore;
+
+        return Row(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Label
+            // Left section: Label and progress bar
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxBarWidth),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Label
+                  Text(
+                    'Consistency Score',
+                    style: const TextStyle(
+                      fontSize: _fontSizeLabel,
+                      fontWeight: FontWeight.w600,
+                      color: _labelColor,
+                      fontFamily: 'Inter',
+                      height: 1,
+                    ),
+                  ),
+                  SizedBox(height: _gapBetweenLabelAndBar),
+                  // Progress bar container
+                  Stack(
+                    children: [
+                      // Background bar
+                      Container(
+                        width: maxBarWidth,
+                        height: _barHeight,
+                        decoration: BoxDecoration(
+                          color: _backgroundBarColor,
+                          borderRadius: BorderRadius.circular(_barBorderRadius),
+                        ),
+                      ),
+                      // Progress bar (overlaid on background)
+                      Container(
+                        width: progressWidth,
+                        height: _barHeight,
+                        decoration: BoxDecoration(
+                          color: _progressBarColor,
+                          borderRadius: BorderRadius.circular(_barBorderRadius),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: _gapBetweenBarAndScore),
+            // Right section: Score
             Text(
-              'Consistency Score',
+              consistencyScore.toStringAsFixed(0),
               style: const TextStyle(
-                fontSize: _fontSizeLabel,
+                fontSize: _fontSizeScore,
                 fontWeight: FontWeight.w600,
-                color: _labelColor,
+                color: _scoreColor,
                 fontFamily: 'Inter',
                 height: 1,
               ),
             ),
-            SizedBox(height: _gapBetweenLabelAndBar),
-            // Progress bar container
-            Stack(
-              children: [
-                // Background bar
-                Container(
-                  width: _barWidth,
-                  height: _barHeight,
-                  decoration: BoxDecoration(
-                    color: _backgroundBarColor,
-                    borderRadius: BorderRadius.circular(_barBorderRadius),
-                  ),
-                ),
-                // Progress bar (overlaid on background)
-                Container(
-                  width: progressWidth,
-                  height: _barHeight,
-                  decoration: BoxDecoration(
-                    color: _progressBarColor,
-                    borderRadius: BorderRadius.circular(_barBorderRadius),
-                  ),
-                ),
-              ],
-            ),
           ],
-        ),
-        SizedBox(width: _gapBetweenBarAndScore),
-        // Right section: Score
-        Text(
-          consistencyScore.toStringAsFixed(0),
-          style: const TextStyle(
-            fontSize: _fontSizeScore,
-            fontWeight: FontWeight.w600,
-            color: _scoreColor,
-            fontFamily: 'Inter',
-            height: 1,
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
