@@ -12,12 +12,16 @@ import 'package:brain2/overlays/price_edit.dart';
 import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
 import 'package:brain2/screens/home_page.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/models/bill_transaction.dart' as model;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddNewBillPage extends StatefulWidget {
   const AddNewBillPage({
     super.key,
-    this.categoryTitle = 'ΔΕΗ',
-    this.amount = '-46.28€',
+    required this.categoryId,
+    this.categoryTitle = 'Bill',
+    this.amount = '0.00€',
     this.status = BillStatusType.pending,
     this.deadline = '20 Nov 2025',
     this.createdOn = '1 Nov 2025',
@@ -27,6 +31,7 @@ class AddNewBillPage extends StatefulWidget {
     this.onDelete,
   });
 
+  final String categoryId;
   final String categoryTitle;
   final String amount;
   final BillStatusType status;
@@ -52,6 +57,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   ImageProvider? _photo;
   Size? _photoSize;
   bool _hasInitializedFlow = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -530,23 +536,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
                 variant: TextTopBarVariant.defaultActive,
                 title: 'Add new bill',
                 onBack: widget.onBack ?? () => Navigator.pop(context),
-                onAddPressed: () {
-                  HapticFeedback.mediumImpact();
-                  setState(() {
-                    _createdOverlayVisible = true;
-                  });
-                  Future.delayed(const Duration(milliseconds: 800), () {
-                    if (mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomePage(),
-                        ),
-                        (route) => false,
-                      );
-                    }
-                  });
-                },
+                onAddPressed: _handleCreateTransaction,
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -580,5 +570,79 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
         ],
       ),
     );
+  }
+
+  model.BillStatus _mapBillStatus(BillStatusType type) {
+    switch (type) {
+      case BillStatusType.paid:
+        return model.BillStatus.paid;
+      case BillStatusType.overdue:
+        return model.BillStatus.overdue;
+      case BillStatusType.pending:
+        return model.BillStatus.pending;
+    }
+  }
+
+  double _parseAmount(String amountStr) {
+    final cleaned = amountStr.replaceAll('€', '').replaceAll(',', '.').trim();
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  Future<void> _handleCreateTransaction() async {
+    if (_isSaving || _createdOverlayVisible) return;
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to add a bill.')),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final amount = _parseAmount(_amount);
+
+      await BillTransactionsRepository.instance.createBillTransaction(
+        categoryId: widget.categoryId,
+        amount: amount,
+        dueDate: _deadlineDate,
+        status: _mapBillStatus(_status),
+        receiptUrl: null,
+      );
+
+      if (!mounted) return;
+
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _createdOverlayVisible = true;
+      });
+
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      final message = error is PostgrestException && error.message.isNotEmpty
+          ? error.message
+          : 'Failed to create bill. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 }

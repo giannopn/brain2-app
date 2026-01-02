@@ -8,6 +8,7 @@ import 'package:brain2/overlays/text_edit.dart';
 import 'package:brain2/overlays/created_overlay.dart';
 import 'package:brain2/screens/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
 
 class CreateNewBillCategoryPage extends StatefulWidget {
   const CreateNewBillCategoryPage({super.key});
@@ -23,6 +24,41 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
   bool _hasPromptedForName = false;
   bool _createdOverlayVisible = false;
   bool _isSaving = false;
+  List<String> _existingCategoryNames = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingCategories();
+    // Prompt for name on first load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasPromptedForName) {
+        _hasPromptedForName = true;
+        _editName(context);
+      }
+    });
+  }
+
+  Future<void> _loadExistingCategories() async {
+    try {
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+      if (mounted) {
+        setState(() {
+          _existingCategoryNames = categories
+              .map((cat) => cat.title.toLowerCase().trim())
+              .toList();
+        });
+      }
+    } catch (_) {
+      // If error, continue with empty list
+    }
+  }
+
+  bool _isNameUnique(String name) {
+    final normalizedName = name.toLowerCase().trim();
+    return !_existingCategoryNames.contains(normalizedName);
+  }
 
   Future<void> _editName(BuildContext context) async {
     final updated = await showTextEditOverlay(
@@ -36,19 +72,17 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
       setState(() {
         _categoryName = updated;
       });
-    }
-  }
 
-  @override
-  void initState() {
-    super.initState();
-    // Prompt for name on first load
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_hasPromptedForName) {
-        _hasPromptedForName = true;
-        _editName(context);
+      // Check if name is not unique and show warning
+      if (!_isNameUnique(updated)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A category with this name already exists.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
-    });
+    }
   }
 
   Future<void> _addPhoto(BuildContext context) async {
@@ -138,10 +172,10 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
     });
 
     try {
-      await Supabase.instance.client.from('bill_categories').insert({
-        'user_id': user.id,
-        'title': _categoryName,
-      });
+      await BillCategoriesRepository.instance.createBillCategory(
+        title: _categoryName,
+        imageUrl: null, // TODO: Add image upload support
+      );
 
       if (!mounted) return;
 
@@ -174,7 +208,10 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isValidName = _categoryName.isNotEmpty && _categoryName != 'Set name';
+    final isValidName =
+        _categoryName.isNotEmpty &&
+        _categoryName != 'Set name' &&
+        _isNameUnique(_categoryName);
 
     return Scaffold(
       backgroundColor: Colors.white,

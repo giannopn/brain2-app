@@ -5,6 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/screens/add_new_bill.dart';
 import 'package:brain2/screens/create_new_bill_category_page.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
+import 'package:brain2/models/bill_category.dart';
 
 class AddPage extends StatefulWidget {
   const AddPage({super.key});
@@ -14,11 +16,44 @@ class AddPage extends StatefulWidget {
 }
 
 class _AddPageState extends State<AddPage> {
-  void _goToAddNewBill(BuildContext context, String categoryName) {
+  List<BillCategory> _categories = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _goToAddNewBill(
+    BuildContext context,
+    String categoryId,
+    String categoryName,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddNewBillPage(categoryTitle: categoryName),
+        builder: (context) =>
+            AddNewBillPage(categoryId: categoryId, categoryTitle: categoryName),
       ),
     );
   }
@@ -45,124 +80,52 @@ class _AddPageState extends State<AddPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 15),
-                    // Grouped preset items
-                    SettingsMenu(
-                      label: 'ΔΕΗ',
-                      place: SettingsMenuPlace.upper,
-                      icon: SvgPicture.asset(
-                        AppIcons.home,
-                        width: 24,
-                        height: 24,
-                      ),
-                      rightIcon: SvgPicture.asset(
-                        AppIcons.arrow,
-                        width: 24,
-                        height: 24,
-                      ),
-                      onTap: () => _goToAddNewBill(context, 'ΔΕΗ'),
-                    ),
-                    const SizedBox(height: 4),
-                    SettingsMenu(
-                      label: 'ΕΥΔΑΠ',
-                      place: SettingsMenuPlace.middle,
-                      icon: SvgPicture.asset(
-                        AppIcons.home,
-                        width: 24,
-                        height: 24,
-                      ),
-                      rightIcon: SvgPicture.asset(
-                        AppIcons.arrow,
-                        width: 24,
-                        height: 24,
-                      ),
-                      onTap: () => _goToAddNewBill(context, 'ΕΥΔΑΠ'),
-                    ),
-                    const SizedBox(height: 4),
-                    SettingsMenu(
-                      label: 'ΚΟΙΝΟΧΡΗΣΤΑ',
-                      place: SettingsMenuPlace.middle,
-                      icon: SvgPicture.asset(
-                        AppIcons.home,
-                        width: 24,
-                        height: 24,
-                      ),
-                      rightIcon: SvgPicture.asset(
-                        AppIcons.arrow,
-                        width: 24,
-                        height: 24,
-                      ),
-                      onTap: () => _goToAddNewBill(context, 'ΚΟΙΝΟΧΡΗΣΤΑ'),
-                    ),
-                    const SizedBox(height: 4),
-                    SettingsMenu(
-                      label: 'ΦΥΣΙΚΟ ΑΕΡΙΟ',
-                      place: SettingsMenuPlace.middle,
-                      icon: SvgPicture.asset(
-                        AppIcons.home,
-                        width: 24,
-                        height: 24,
-                      ),
-                      rightIcon: SvgPicture.asset(
-                        AppIcons.arrow,
-                        width: 24,
-                        height: 24,
-                      ),
-                      onTap: () => _goToAddNewBill(context, 'ΦΥΣΙΚΟ ΑΕΡΙΟ'),
-                    ),
-                    const SizedBox(height: 4),
-                    SettingsMenu(
-                      label: 'ΔΕΗ - ΣΠΙΤΙ 2',
-                      place: SettingsMenuPlace.middle,
-                      icon: SvgPicture.asset(
-                        AppIcons.home,
-                        width: 24,
-                        height: 24,
-                      ),
-                      rightIcon: SvgPicture.asset(
-                        AppIcons.arrow,
-                        width: 24,
-                        height: 24,
-                      ),
-                      onTap: () => _goToAddNewBill(context, 'ΔΕΗ - ΣΠΙΤΙ 2'),
-                    ),
-                    const SizedBox(height: 4),
-                    SettingsMenu(
-                      label: 'INTERNET',
-                      place: SettingsMenuPlace.lower,
-                      icon: SvgPicture.asset(
-                        AppIcons.home,
-                        width: 24,
-                        height: 24,
-                      ),
-                      rightIcon: SvgPicture.asset(
-                        AppIcons.arrow,
-                        width: 24,
-                        height: 24,
-                      ),
-                      onTap: () => _goToAddNewBill(context, 'INTERNET'),
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    // Add new item row
-                    SettingsMenu(
-                      label: 'Create new bill category...',
-                      hideIcon: true,
-                      rightIcon: SvgPicture.asset(
-                        AppIcons.plus,
-                        width: 24,
-                        height: 24,
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const CreateNewBillCategoryPage(),
+                    if (_isLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else if (_categories.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            'No bill categories yet.\nCreate one to get started!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      )
+                    else
+                      ..._buildCategoryMenuItems(),
+                    if (!_isLoading && _categories.isNotEmpty)
+                      const SizedBox(height: 15),
+                    if (!_isLoading)
+                      SettingsMenu(
+                        label: 'Create new bill category...',
+                        hideIcon: true,
+                        rightIcon: SvgPicture.asset(
+                          AppIcons.plus,
+                          width: 24,
+                          height: 24,
+                        ),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const CreateNewBillCategoryPage(),
+                            ),
+                          );
+                          // Reload categories after returning
+                          _loadCategories();
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -171,5 +134,42 @@ class _AddPageState extends State<AddPage> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildCategoryMenuItems() {
+    final items = <Widget>[];
+
+    for (int i = 0; i < _categories.length; i++) {
+      final category = _categories[i];
+      final isFirst = i == 0;
+      final isLast = i == _categories.length - 1;
+
+      SettingsMenuPlace place;
+      if (_categories.length == 1) {
+        place = SettingsMenuPlace.defaultPlace;
+      } else if (isFirst) {
+        place = SettingsMenuPlace.upper;
+      } else if (isLast) {
+        place = SettingsMenuPlace.lower;
+      } else {
+        place = SettingsMenuPlace.middle;
+      }
+
+      items.add(
+        SettingsMenu(
+          label: category.title,
+          place: place,
+          icon: SvgPicture.asset(AppIcons.home, width: 24, height: 24),
+          rightIcon: SvgPicture.asset(AppIcons.arrow, width: 24, height: 24),
+          onTap: () => _goToAddNewBill(context, category.id, category.title),
+        ),
+      );
+
+      if (!isLast) {
+        items.add(const SizedBox(height: 4));
+      }
+    }
+
+    return items;
   }
 }
