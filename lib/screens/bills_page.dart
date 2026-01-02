@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/filters.dart';
-import 'package:brain2/models/search_item.dart';
-import 'package:brain2/data/mock_search_data.dart';
+import 'package:brain2/widgets/bills_cards.dart';
+import 'package:brain2/widgets/bill_status.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/models/bill_category.dart';
+import 'package:brain2/models/bill_transaction.dart' as model;
 import 'package:brain2/screens/bill_category.dart';
 import 'package:brain2/screens/add_page.dart';
 import 'package:brain2/screens/home_page.dart';
@@ -20,9 +24,12 @@ class BillsPage extends StatefulWidget {
 
 class _BillsPageState extends State<BillsPage> {
   FilterActive _activeFilter = FilterActive.all;
-  List<SearchItem> _filteredBills = [];
+  List<BillCategory> _allCategories = [];
+  List<BillCategory> _filteredCategories = [];
+  Map<String, BillStatusType> _categoryStatuses = {};
   int _navIndex = 1; // Library tab active
   bool _showTopBorder = false;
+  bool _isLoading = true;
   static double _savedScrollOffset = 0.0;
   late final ScrollController _scrollController = ScrollController(
     initialScrollOffset: _savedScrollOffset,
@@ -32,7 +39,7 @@ class _BillsPageState extends State<BillsPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
-    _filterBills();
+    _loadData();
   }
 
   @override
@@ -47,36 +54,84 @@ class _BillsPageState extends State<BillsPage> {
     _savedScrollOffset = _scrollController.offset;
   }
 
+  Future<void> _loadData() async {
+    try {
+      // Load categories from cache
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+
+      // Load all transactions to determine status for each category
+      final transactions = await BillTransactionsRepository.instance
+          .fetchBillTransactions();
+
+      // Calculate status for each category based on its transactions
+      final Map<String, BillStatusType> statuses = {};
+      for (final category in categories) {
+        final categoryTransactions = transactions
+            .where((t) => t.categoryId == category.id)
+            .toList();
+
+        if (categoryTransactions.isEmpty) {
+          // No transactions yet, default to pending
+          statuses[category.id] = BillStatusType.pending;
+        } else {
+          // Check if any transaction is overdue
+          final hasOverdue = categoryTransactions.any(
+            (t) => t.status == model.BillStatus.overdue,
+          );
+          if (hasOverdue) {
+            statuses[category.id] = BillStatusType.overdue;
+          } else {
+            // Check if any transaction is pending
+            final hasPending = categoryTransactions.any(
+              (t) => t.status == model.BillStatus.pending,
+            );
+            if (hasPending) {
+              statuses[category.id] = BillStatusType.pending;
+            } else {
+              // All transactions are paid
+              statuses[category.id] = BillStatusType.paid;
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _allCategories = categories;
+          _categoryStatuses = statuses;
+          _isLoading = false;
+        });
+        _filterBills();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   void _filterBills() {
-    // Get only bills from mock data
-    List<SearchItem> bills = mockSearchItems
-        .where((item) => item.type == SearchItemType.bill)
-        .toList();
+    List<BillCategory> filtered = List.from(_allCategories);
 
     // Filter by status based on active filter
     if (_activeFilter == FilterActive.second) {
-      // Only pending bills
-      bills = bills
-          .where(
-            (item) =>
-                (item.card as dynamic).status.toString() ==
-                'BillStatusType.pending',
-          )
+      // Only pending categories
+      filtered = filtered
+          .where((cat) => _categoryStatuses[cat.id] == BillStatusType.pending)
           .toList();
     } else if (_activeFilter == FilterActive.third) {
-      // Only overdue bills
-      bills = bills
-          .where(
-            (item) =>
-                (item.card as dynamic).status.toString() ==
-                'BillStatusType.overdue',
-          )
+      // Only overdue categories
+      filtered = filtered
+          .where((cat) => _categoryStatuses[cat.id] == BillStatusType.overdue)
           .toList();
     }
-    // If _activeFilter == FilterActive.all, show all bills
+    // If _activeFilter == FilterActive.all, show all categories
 
     setState(() {
-      _filteredBills = bills;
+      _filteredCategories = filtered;
     });
   }
 
@@ -122,7 +177,9 @@ class _BillsPageState extends State<BillsPage> {
                 }
                 return false;
               },
-              child: _filteredBills.isEmpty
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredCategories.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(20),
@@ -135,38 +192,56 @@ class _BillsPageState extends State<BillsPage> {
                         ),
                       ),
                     )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      itemCount: _filteredBills.length + 2,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return const SizedBox(height: 4);
-                        }
-                        if (index == _filteredBills.length + 1) {
-                          return const SizedBox(height: 61);
-                        }
-                        final item = _filteredBills[index - 1];
-                        return Column(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => BillCategoryPage(
-                                      categoryTitle: item.title,
-                                    ),
-                                  ),
-                                );
-                              },
-                              behavior: HitTestBehavior.opaque,
-                              child: item.card,
-                            ),
-                            const SizedBox(height: 4),
-                          ],
-                        );
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        await BillCategoriesRepository.instance
+                            .fetchBillCategories(forceRefresh: true);
+                        await BillTransactionsRepository.instance
+                            .fetchBillTransactions(forceRefresh: true);
+                        await _loadData();
                       },
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: _filteredCategories.length + 2,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return const SizedBox(height: 4);
+                          }
+                          if (index == _filteredCategories.length + 1) {
+                            return const SizedBox(height: 61);
+                          }
+                          final category = _filteredCategories[index - 1];
+                          final status =
+                              _categoryStatuses[category.id] ??
+                              BillStatusType.pending;
+                          return Column(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => BillCategoryPage(
+                                        categoryTitle: category.title,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                behavior: HitTestBehavior.opaque,
+                                child: BillsCard(
+                                  type: BillsCardType.general,
+                                  title: category.title,
+                                  status: status,
+                                  width: double.infinity,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                          );
+                        },
+                      ),
                     ),
             ),
           ),
