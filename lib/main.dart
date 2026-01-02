@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:brain2/screens/home_page.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -9,20 +11,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Text(
-            'Hello Flutter!',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
-          ),
-        ),
-      ),
+    return MaterialApp(
+      home: const HomePage(),
+      theme: ThemeData(fontFamily: 'Inter'),
     );
   }
 }
