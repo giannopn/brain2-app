@@ -46,7 +46,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
     _scrollController.dispose();
     super.dispose();
   }
@@ -107,7 +109,7 @@ class _HomePageState extends State<HomePage> {
                           Padding(
                             padding: const EdgeInsets.all(20),
                             child: Text(
-                              'No past bills',
+                              'No past pending bills',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey.shade600,
@@ -140,7 +142,7 @@ class _HomePageState extends State<HomePage> {
                           Padding(
                             padding: const EdgeInsets.all(20),
                             child: Text(
-                              'No upcoming bills',
+                              'No upcoming pending bills',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey.shade600,
@@ -236,9 +238,11 @@ class _HomePageState extends State<HomePage> {
       child: SearchTopBar(
         variant: SearchTopBarVariant.home,
         onAdd: () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (context) => const AddPage()));
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const AddPage(source: AddEntrySource.home),
+            ),
+          );
         },
         onSearchTap: () {
           Navigator.of(context)
@@ -266,7 +270,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleScroll() {
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
   }
 
   Future<void> _loadData() async {

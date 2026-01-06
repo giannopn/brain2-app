@@ -542,6 +542,8 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     if (confirmed == true) {
       HapticFeedback.mediumImpact();
 
+      if (!mounted) return;
+
       setState(() {
         _isDeleting = true;
       });

@@ -9,7 +9,8 @@ import 'package:brain2/widgets/bills_cards.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/screens/bill_transactions_page.dart';
 import 'package:brain2/screens/bill_details_page.dart';
-import 'package:brain2/screens/add_new_bill.dart';
+import 'package:brain2/screens/add_new_bill.dart'
+    show AddNewBillPage, AddReturnTarget;
 import 'package:brain2/overlays/text_edit.dart';
 import 'package:brain2/overlays/delete_confirmation_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
@@ -272,6 +273,8 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
     if (confirmed == true) {
       HapticFeedback.mediumImpact();
 
+      if (!mounted) return;
+
       setState(() {
         _isDeleting = true;
       });
@@ -336,6 +339,7 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                       builder: (context) => AddNewBillPage(
                         categoryId: widget.categoryId,
                         categoryTitle: _name,
+                        returnTarget: AddReturnTarget.billCategory,
                       ),
                     ),
                   );

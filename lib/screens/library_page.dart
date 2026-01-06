@@ -33,7 +33,9 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
     _scrollController.dispose();
     super.dispose();
   }
@@ -80,7 +82,9 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _handleScroll() {
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
   }
 
   Widget _buildTopBar() {

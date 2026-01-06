@@ -14,10 +14,13 @@ import 'package:brain2/overlays/price_edit.dart';
 import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
 import 'package:brain2/screens/home_page.dart';
+import 'package:brain2/screens/bills_page.dart';
 import 'package:brain2/data/bill_transactions_repository.dart';
 import 'package:brain2/models/bill_transaction.dart' as model;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+
+enum AddReturnTarget { home, bills, billCategory }
 
 class AddNewBillPage extends StatefulWidget {
   const AddNewBillPage({
@@ -32,6 +35,7 @@ class AddNewBillPage extends StatefulWidget {
     this.onMarkAsPaid,
     this.onAddPhoto,
     this.onDelete,
+    this.returnTarget = AddReturnTarget.home,
   });
 
   final String categoryId;
@@ -44,6 +48,7 @@ class AddNewBillPage extends StatefulWidget {
   final VoidCallback? onMarkAsPaid;
   final VoidCallback? onAddPhoto;
   final VoidCallback? onDelete;
+  final AddReturnTarget returnTarget;
 
   @override
   State<AddNewBillPage> createState() => _AddNewBillPageState();
@@ -752,11 +757,21 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
 
       if (!mounted) return;
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-        (route) => false,
-      );
+      if (widget.returnTarget == AddReturnTarget.billCategory) {
+        // Just pop back to the bill category page
+        Navigator.pop(context);
+      } else {
+        // Navigate to home or bills page
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => widget.returnTarget == AddReturnTarget.home
+                ? const HomePage()
+                : const BillsPage(),
+          ),
+          (route) => false,
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {

@@ -8,8 +8,12 @@ import 'package:brain2/screens/create_new_bill_category_page.dart';
 import 'package:brain2/data/bill_categories_repository.dart';
 import 'package:brain2/models/bill_category.dart';
 
+enum AddEntrySource { home, bills }
+
 class AddPage extends StatefulWidget {
-  const AddPage({super.key});
+  const AddPage({super.key, this.source = AddEntrySource.home});
+
+  final AddEntrySource source;
 
   @override
   State<AddPage> createState() => _AddPageState();
@@ -52,8 +56,13 @@ class _AddPageState extends State<AddPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            AddNewBillPage(categoryId: categoryId, categoryTitle: categoryName),
+        builder: (context) => AddNewBillPage(
+          categoryId: categoryId,
+          categoryTitle: categoryName,
+          returnTarget: widget.source == AddEntrySource.bills
+              ? AddReturnTarget.bills
+              : AddReturnTarget.home,
+        ),
       ),
     );
   }
@@ -126,6 +135,7 @@ class _AddPageState extends State<AddPage> {
                           _loadCategories();
                         },
                       ),
+                    const SizedBox(height: 50),
                   ],
                 ),
               ),

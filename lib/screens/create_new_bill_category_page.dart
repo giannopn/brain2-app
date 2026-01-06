@@ -6,7 +6,8 @@ import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
 import 'package:brain2/overlays/text_edit.dart';
 import 'package:brain2/overlays/created_overlay.dart';
-import 'package:brain2/screens/home_page.dart';
+import 'package:brain2/screens/bill_category.dart';
+import 'package:brain2/screens/bills_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:brain2/data/bill_categories_repository.dart';
 
@@ -164,10 +165,11 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
     });
 
     try {
-      await BillCategoriesRepository.instance.createBillCategory(
-        title: _categoryName,
-        imageUrl: null, // TODO: Add image upload support
-      );
+      final newCategory = await BillCategoriesRepository.instance
+          .createBillCategory(
+            title: _categoryName,
+            imageUrl: null, // TODO: Add image upload support
+          );
 
       if (!mounted) return;
 
@@ -179,10 +181,26 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
 
       if (!mounted) return;
 
+      // Navigate to BillsPage first, then push the new category page on top
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
+        MaterialPageRoute(builder: (context) => const BillsPage()),
         (route) => false,
+      );
+
+      // Small delay to ensure BillsPage is rendered
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BillCategoryPage(
+            categoryId: newCategory.id,
+            categoryTitle: newCategory.title,
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;

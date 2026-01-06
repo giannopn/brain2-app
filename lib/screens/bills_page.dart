@@ -46,13 +46,17 @@ class _BillsPageState extends State<BillsPage> {
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
     _scrollController.dispose();
     super.dispose();
   }
 
   void _handleScroll() {
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
   }
 
   Future<void> _loadData() async {
@@ -262,9 +266,11 @@ class _BillsPageState extends State<BillsPage> {
     return SearchTopBar(
       variant: SearchTopBarVariant.home,
       onAdd: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => const AddPage()));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const AddPage(source: AddEntrySource.bills),
+          ),
+        );
       },
       onSearchTap: () {
         Navigator.of(context)
@@ -332,9 +338,11 @@ class _BillsPageState extends State<BillsPage> {
                 });
           }
         } else if (index == 2) {
-          _savedScrollOffset = _scrollController.hasClients
-              ? _scrollController.offset
-              : _savedScrollOffset;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const AddPage(source: AddEntrySource.bills),
+            ),
+          );
           Navigator.of(context).push(
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
