@@ -116,6 +116,17 @@ class _AccountPageState extends State<AccountPage> {
   static const double _sectionGap = 24;
   static const double _menuItemHeight = 52;
 
+  String _getInitials(String name) {
+    final letters = name
+        .split(' ')
+        .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
+        .join();
+
+    if (letters.isEmpty) return '';
+    if (letters.length == 1) return letters;
+    return letters.substring(0, 2);
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = _profile?.displayName ?? '';
@@ -160,9 +171,7 @@ class _AccountPageState extends State<AccountPage> {
                       ),
                       child: Center(
                         child: Text(
-                          name.isNotEmpty
-                              ? name.substring(0, 1).toUpperCase()
-                              : '',
+                          _getInitials(name),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 40,

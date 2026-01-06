@@ -25,6 +25,7 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
   bool _createdOverlayVisible = false;
   bool _isSaving = false;
   List<String> _existingCategoryNames = [];
+  bool _isDuplicateName = false;
 
   @override
   void initState() {
@@ -71,17 +72,8 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
     if (updated != null && updated.isNotEmpty && updated != _categoryName) {
       setState(() {
         _categoryName = updated;
+        _isDuplicateName = !_isNameUnique(updated);
       });
-
-      // Check if name is not unique and show warning
-      if (!_isNameUnique(updated)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('A category with this name already exists.'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
     }
   }
 
@@ -257,53 +249,14 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
                             child: ClipOval(
                               child: _photo != null
                                   ? Image(image: _photo!, fit: BoxFit.cover)
-                                  : Image.asset(
-                                      AppIcons.billDefaultIcon,
+                                  : SvgPicture.asset(
+                                      'assets/png_photos/bill_deafult_icon.svg',
                                       fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Container(
-                                              color: Colors.grey.shade200,
-                                              child: Icon(
-                                                Icons.image_not_supported,
-                                                color: Colors.grey.shade400,
-                                              ),
-                                            );
-                                          },
                                     ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 15),
-                        // Change icon button
-                        GestureDetector(
-                          onTap: () => _addPhoto(context),
-                          behavior: HitTestBehavior.opaque,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SvgPicture.asset(
-                                AppIcons.editPencil,
-                                width: 24,
-                                height: 24,
-                                colorFilter: const ColorFilter.mode(
-                                  Color(0xFF007AFF),
-                                  BlendMode.srcIn,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'Change icon',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w400,
-                                  color: Color(0xFF007AFF),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 15),
+                        const SizedBox(height: 30),
                         // Name settings menu
                         SettingsMenu(
                           label: 'Name',
@@ -317,6 +270,38 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
                           rightLabel: _categoryName,
                           onRightTap: () => _editName(context),
                         ),
+                        if (_isDuplicateName)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 8,
+                              left: 14,
+                              right: 14,
+                            ),
+                            child: Row(
+                              children: [
+                                SvgPicture.asset(
+                                  AppIcons.wavyWarning,
+                                  width: 20,
+                                  height: 20,
+                                  colorFilter: const ColorFilter.mode(
+                                    Color(0xFFFF3B30),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Expanded(
+                                  child: Text(
+                                    'A bill category with this name already exists.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w400,
+                                      color: Color(0xFFFF3B30),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         const SizedBox(height: 15),
                         // Info message
                         Padding(
@@ -336,7 +321,7 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
                               const SizedBox(width: 6),
                               const Expanded(
                                 child: Text(
-                                  'You can add individual bill payments later under this bill.',
+                                  'You can add individual transactions later under this bill.',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w300,

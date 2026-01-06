@@ -381,18 +381,9 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                           child: ClipOval(
                             child: _photo != null
                                 ? Image(image: _photo!, fit: BoxFit.cover)
-                                : Image.asset(
-                                    AppIcons.billDefaultIcon,
+                                : SvgPicture.asset(
+                                    'assets/png_photos/bill_deafult_icon.svg',
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Colors.grey.shade200,
-                                        child: Icon(
-                                          Icons.image_not_supported,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      );
-                                    },
                                   ),
                           ),
                         ),

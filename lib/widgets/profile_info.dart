@@ -21,7 +21,7 @@ class ProfileInfo extends StatelessWidget {
   // Colors
   static const Color _nameColor = Color(0xFF000000);
   static const Color _emailColor = Color(0xFF000000);
-  static const Color _demoBgColor = Color(0xFF3B9FFF);
+  static const Color _demoBgColor = Color(0xFF007AFF);
 
   // Sizing
   static const double _profileImageSize = 72;
