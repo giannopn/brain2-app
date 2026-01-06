@@ -12,6 +12,7 @@ import 'package:brain2/screens/bill_category.dart';
 import 'package:brain2/screens/add_page.dart';
 import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/screens/profile_page.dart';
+import 'package:brain2/screens/search_page.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
 import 'package:brain2/widgets/navigation_icons.dart';
 
@@ -266,7 +267,24 @@ class _BillsPageState extends State<BillsPage> {
         ).push(MaterialPageRoute(builder: (context) => const AddPage()));
       },
       onSearchTap: () {
-        // Handle search tap
+        Navigator.of(context)
+            .push(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const SearchPage(),
+                transitionDuration: const Duration(milliseconds: 300),
+                reverseTransitionDuration: const Duration(milliseconds: 250),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+              ),
+            )
+            .then((result) async {
+              if (mounted && result == true) {
+                await _loadData();
+              }
+            });
       },
       width: double.infinity,
     );
