@@ -56,5 +56,9 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow selecting photos to attach to your bills.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow taking photos to attach to your bills.</string>
 </dict>
 </plist>

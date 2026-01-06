@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -15,6 +17,7 @@ import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/data/bill_transactions_repository.dart';
 import 'package:brain2/models/bill_transaction.dart' as model;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AddNewBillPage extends StatefulWidget {
   const AddNewBillPage({
@@ -58,6 +61,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   Size? _photoSize;
   bool _hasInitializedFlow = false;
   bool _isSaving = false;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -216,23 +220,66 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
     if (selection == null) return;
 
     if (selection == 'camera') {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Opening camera...')));
-      // TODO: Integrate camera capture flow
+      await _pickFromCamera(context);
     } else if (selection == 'gallery') {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Opening gallery...')));
-      // TODO: Integrate gallery picker flow
+      await _pickFromGallery(context);
     }
+  }
 
-    setState(() {
-      _photo = const AssetImage('assets/icon/brain2_logo.png');
-    });
-    _resolvePhotoSize(context);
+  Future<void> _pickFromCamera(BuildContext context) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
 
-    widget.onAddPhoto?.call();
+      if (picked == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        _photo = FileImage(File(picked.path));
+      });
+      _resolvePhotoSize(context);
+      widget.onAddPhoto?.call();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not capture photo: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickFromGallery(BuildContext context) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
+
+      if (picked == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        _photo = FileImage(File(picked.path));
+      });
+      _resolvePhotoSize(context);
+      widget.onAddPhoto?.call();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load photo: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _removePhoto() {
