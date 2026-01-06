@@ -276,7 +276,7 @@ class _AccountPageState extends State<AccountPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Signed in with Apple Account',
+                          'Signed in with email',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: _fontSizeSignedIn,

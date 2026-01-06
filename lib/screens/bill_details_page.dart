@@ -11,26 +11,21 @@ import 'package:brain2/overlays/price_edit.dart';
 import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
 import 'package:brain2/overlays/delete_confirmation_overlay.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
+import 'package:brain2/models/bill_transaction.dart' as model;
 
 class BillDetailsPage extends StatefulWidget {
   const BillDetailsPage({
     super.key,
-    this.categoryTitle = 'ΔΕΗ',
-    this.amount = '-46.28€',
-    this.status = BillStatusType.pending,
-    this.deadline = '20 Nov 2025',
-    this.createdOn = '1 Nov 2025',
+    required this.transactionId,
     this.onBack,
     this.onMarkAsPaid,
     this.onAddPhoto,
     this.onDelete,
   });
 
-  final String categoryTitle;
-  final String amount;
-  final BillStatusType status;
-  final String deadline;
-  final String createdOn;
+  final String transactionId;
   final VoidCallback? onBack;
   final VoidCallback? onMarkAsPaid;
   final VoidCallback? onAddPhoto;
@@ -46,25 +41,28 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   late String _amount;
   late String _deadline;
   late DateTime _deadlineDate;
+  String _createdOn = '';
+  String _categoryTitle = 'Bill';
+  bool _isLoading = true;
+  bool _isSaving = false;
+  bool _isDeleting = false;
   ImageProvider? _photo;
   Size? _photoSize;
 
   @override
   void initState() {
     super.initState();
-    _status = widget.status;
-    _amount = widget.amount;
-    _deadline = widget.deadline;
+    _status = BillStatusType.pending;
+    _amount = '0€';
+    _deadline = '';
+    _deadlineDate = DateTime.now();
 
-    // Parse deadline to DateTime
-    try {
-      _deadlineDate = _parseDate(widget.deadline);
-    } catch (e) {
-      _deadlineDate = DateTime.now();
-    }
+    _loadTransaction();
   }
 
   Future<void> _editAmount(BuildContext context) async {
+    if (_isSaving) return;
+
     // Strip euro symbol for the overlay input
     final currentValue = _amount.replaceAll('€', '').trim();
 
@@ -76,17 +74,26 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     );
 
     if (updated != null && updated.isNotEmpty) {
-      // Append euro symbol to the formatted price
-      final formattedAmount = '${updated}€';
-      if (formattedAmount != _amount) {
-        setState(() {
-          _amount = formattedAmount;
-        });
+      final parsed = double.tryParse(updated.replaceAll(',', '.'));
+      if (parsed != null) {
+        if (mounted) {
+          await _updateTransactionOnServer(amount: parsed);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid amount'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       }
     }
   }
 
   Future<void> _editDeadline(BuildContext context) async {
+    if (_isSaving) return;
     // Use the _deadlineDate if available, otherwise try to parse _deadline
     DateTime initialDate = _deadlineDate;
 
@@ -97,15 +104,15 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     );
 
     if (updated != null) {
-      // Format the date back to string "DD MMM YYYY"
-      final formatter = _formatDate(updated);
-      if (formatter != _deadline) {
-        setState(() {
-          _deadline = formatter;
-          _deadlineDate = updated;
-          _updateStatusBasedOnDeadline();
-        });
+      // Determine new status if not paid
+      BillStatusType newStatus = _status;
+      if (_status != BillStatusType.paid) {
+        newStatus = updated.isBefore(DateTime.now())
+            ? BillStatusType.overdue
+            : BillStatusType.pending;
       }
+
+      await _updateTransactionOnServer(dueDate: updated, status: newStatus);
     }
   }
 
@@ -127,50 +134,131 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  DateTime _parseDate(String dateStr) {
-    // Parse format like "20 Nov 2025"
-    final months = {
-      'Jan': 1,
-      'Feb': 2,
-      'Mar': 3,
-      'Apr': 4,
-      'May': 5,
-      'Jun': 6,
-      'Jul': 7,
-      'Aug': 8,
-      'Sep': 9,
-      'Oct': 10,
-      'Nov': 11,
-      'Dec': 12,
-    };
-
-    final parts = dateStr.split(' ');
-    if (parts.length == 3) {
-      final day = int.parse(parts[0]);
-      final month = months[parts[1]] ?? 1;
-      final year = int.parse(parts[2]);
-      return DateTime(year, month, day);
+  BillStatusType _mapModelStatus(model.BillStatus status) {
+    switch (status) {
+      case model.BillStatus.paid:
+        return BillStatusType.paid;
+      case model.BillStatus.pending:
+        return BillStatusType.pending;
+      case model.BillStatus.overdue:
+        return BillStatusType.overdue;
     }
-
-    return DateTime.now();
   }
 
-  void _updateStatusBasedOnDeadline() {
-    if (_status != BillStatusType.paid) {
-      if (_deadlineDate.isBefore(DateTime.now())) {
-        _status = BillStatusType.overdue;
-      } else {
-        _status = BillStatusType.pending;
+  model.BillStatus _mapToModelStatus(BillStatusType status) {
+    switch (status) {
+      case BillStatusType.paid:
+        return model.BillStatus.paid;
+      case BillStatusType.pending:
+        return model.BillStatus.pending;
+      case BillStatusType.overdue:
+        return model.BillStatus.overdue;
+    }
+  }
+
+  void _applyTransaction(model.BillTransaction tx, String categoryTitle) {
+    _status = _mapModelStatus(tx.status);
+    _amount = '${tx.amount.toStringAsFixed(2)}€';
+    _deadlineDate = tx.dueDate;
+    _deadline = _formatDate(tx.dueDate);
+    _createdOn = _formatDate(tx.createdAt);
+    _categoryTitle = categoryTitle;
+  }
+
+  Future<void> _updateTransactionOnServer({
+    double? amount,
+    DateTime? dueDate,
+    BillStatusType? status,
+  }) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final updated = await BillTransactionsRepository.instance
+          .updateBillTransaction(
+            id: widget.transactionId,
+            amount: amount,
+            dueDate: dueDate,
+            status: status != null ? _mapToModelStatus(status) : null,
+          );
+
+      String categoryTitle = _categoryTitle;
+      try {
+        final categories = await BillCategoriesRepository.instance
+            .fetchBillCategories();
+        final match = categories.where((c) => c.id == updated.categoryId);
+        if (match.isNotEmpty) {
+          categoryTitle = match.first.title;
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _applyTransaction(updated, categoryTitle);
+          _isSaving = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save changes: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     }
   }
 
-  void _forceUpdateStatusBasedOnDeadline() {
-    if (_deadlineDate.isBefore(DateTime.now())) {
-      _status = BillStatusType.overdue;
-    } else {
-      _status = BillStatusType.pending;
+  Future<void> _loadTransaction() async {
+    model.BillTransaction? tx;
+
+    final cached = BillTransactionsRepository.instance.cachedTransactions;
+    if (cached != null) {
+      try {
+        tx = cached.firstWhere((t) => t.id == widget.transactionId);
+      } catch (_) {}
     }
+
+    if (tx == null) {
+      final fetched = await BillTransactionsRepository.instance
+          .fetchBillTransactions();
+      try {
+        tx = fetched.firstWhere((t) => t.id == widget.transactionId);
+      } catch (_) {}
+    }
+
+    if (tx == null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaction not found'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+      return;
+    }
+
+    String categoryTitle = _categoryTitle;
+    try {
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+      final match = categories.where((c) => c.id == tx!.categoryId);
+      if (match.isNotEmpty) {
+        categoryTitle = match.first.title;
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    setState(() {
+      _applyTransaction(tx!, categoryTitle);
+      _isLoading = false;
+    });
   }
 
   Future<void> _addPhoto(BuildContext context) async {
@@ -264,15 +352,45 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
 
     if (confirmed == true) {
       HapticFeedback.mediumImpact();
-      // Show brief confirmation and navigate back
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Transaction deleted'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      widget.onDelete?.call();
-      Navigator.pop(context);
+
+      setState(() {
+        _isDeleting = true;
+      });
+
+      try {
+        // Delete transaction from Supabase (cache will be updated automatically)
+        await BillTransactionsRepository.instance.deleteBillTransaction(
+          widget.transactionId,
+        );
+
+        if (mounted) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Transaction deleted'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Navigate back
+          widget.onDelete?.call();
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isDeleting = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -382,7 +500,7 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
             place: SettingsMenuPlace.lower,
             icon: SvgPicture.asset(AppIcons.calendar, width: 24, height: 24),
             rightText: true,
-            rightLabel: widget.createdOn,
+            rightLabel: _createdOn,
             rightLabelColor: Colors.black,
           ),
         ],
@@ -473,44 +591,78 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
                 width: 24,
                 height: 24,
               ),
-              onTap: _toggleStatus,
+              onTap: _isDeleting ? null : _toggleStatus,
             ),
             const SizedBox(height: 4),
-            SettingsMenu(
-              label: 'Delete this bill',
-              place: SettingsMenuPlace.lower,
-              hideIcon: true,
-              labelColor: const Color(0xFFFF0000),
-              rightIcon: SvgPicture.asset(
-                AppIcons.arrow,
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFFFF0000),
-                  BlendMode.srcIn,
+            GestureDetector(
+              onTap: _isDeleting ? null : () => _confirmDelete(context),
+              behavior: HitTestBehavior.opaque,
+              child: Opacity(
+                opacity: _isDeleting ? 0.5 : 1.0,
+                child: SettingsMenu(
+                  label: 'Delete this bill',
+                  place: SettingsMenuPlace.lower,
+                  hideIcon: true,
+                  labelColor: const Color(0xFFFF0000),
+                  rightIcon: _isDeleting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFFFF0000),
+                            ),
+                          ),
+                        )
+                      : SvgPicture.asset(
+                          AppIcons.arrow,
+                          width: 24,
+                          height: 24,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFFFF0000),
+                            BlendMode.srcIn,
+                          ),
+                        ),
                 ),
               ),
-              onTap: () => _confirmDelete(context),
             ),
           ],
         ),
       );
     } else {
       widgets.add(
-        SettingsMenu(
-          label: 'Delete this bill',
-          hideIcon: true,
-          labelColor: const Color(0xFFFF0000),
-          rightIcon: SvgPicture.asset(
-            AppIcons.arrow,
-            width: 24,
-            height: 24,
-            colorFilter: const ColorFilter.mode(
-              Color(0xFFFF0000),
-              BlendMode.srcIn,
+        GestureDetector(
+          onTap: _isDeleting ? null : () => _confirmDelete(context),
+          behavior: HitTestBehavior.opaque,
+          child: Opacity(
+            opacity: _isDeleting ? 0.5 : 1.0,
+            child: SettingsMenu(
+              label: 'Delete this bill',
+              hideIcon: true,
+              labelColor: const Color(0xFFFF0000),
+              rightIcon: _isDeleting
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFFFF0000),
+                        ),
+                      ),
+                    )
+                  : SvgPicture.asset(
+                      AppIcons.arrow,
+                      width: 24,
+                      height: 24,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFFFF0000),
+                        BlendMode.srcIn,
+                      ),
+                    ),
             ),
           ),
-          onTap: () => _confirmDelete(context),
         ),
       );
     }
@@ -521,26 +673,34 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
   }
 
   void _toggleStatus() {
-    // Toggle behavior: show success overlay only when going Pending -> Paid
+    if (_isSaving) return;
+
+    // Toggle behavior: show success overlay only when going Pending/Overdue -> Paid
     if (_status != BillStatusType.paid) {
       HapticFeedback.mediumImpact();
-      widget.onMarkAsPaid?.call();
-      setState(() {
-        _overlayVisible = true;
-      });
-      Future.delayed(const Duration(milliseconds: 800), () {
+      _updateTransactionOnServer(status: BillStatusType.paid).then((_) {
+        if (!mounted) return;
+        widget.onMarkAsPaid?.call();
         setState(() {
-          _status = BillStatusType.paid;
-          _overlayVisible = false;
+          _overlayVisible = true;
+        });
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) {
+            setState(() {
+              _overlayVisible = false;
+            });
+          }
         });
       });
     } else {
       HapticFeedback.mediumImpact();
-      setState(() {
-        // Re-evaluate status based on deadline when marking as unpaid
-        _forceUpdateStatusBasedOnDeadline();
+      final newStatus = _deadlineDate.isBefore(DateTime.now())
+          ? BillStatusType.overdue
+          : BillStatusType.pending;
+      _updateTransactionOnServer(status: newStatus).then((_) {
+        if (!mounted) return;
+        widget.onMarkAsPaid?.call();
       });
-      widget.onMarkAsPaid?.call();
     }
   }
 
@@ -554,7 +714,7 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
             children: [
               SearchTopBar(
                 variant: SearchTopBarVariant.withBack,
-                centerTitle: widget.categoryTitle,
+                centerTitle: _categoryTitle,
                 onBack: widget.onBack ?? () => Navigator.pop(context),
                 hideAddButton: true,
                 paddingTop: 68,
@@ -564,15 +724,17 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
                 width: MediaQuery.of(context).size.width,
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: _buildDetailsChildren(context),
-                    ),
-                  ),
-                ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 15),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: _buildDetailsChildren(context),
+                          ),
+                        ),
+                      ),
               ),
             ],
           ),

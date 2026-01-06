@@ -192,12 +192,17 @@ class _ProfilePageState extends State<ProfilePage>
                       width: 24,
                       height: 24,
                     ),
-                    onTap: () {
-                      Navigator.of(context).push(
+                    onTap: () async {
+                      await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => const AccountPage(),
                         ),
                       );
+
+                      // Reload profile from cache when returning
+                      if (mounted) {
+                        _loadCachedProfile();
+                      }
                     },
                   ),
                   const SizedBox(height: 4),
@@ -336,7 +341,7 @@ class _ProfilePageState extends State<ProfilePage>
                       }
                     },
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 140),
                 ],
               ),
             ),

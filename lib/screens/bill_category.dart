@@ -9,19 +9,24 @@ import 'package:brain2/widgets/bills_cards.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/screens/bill_transactions_page.dart';
 import 'package:brain2/screens/bill_details_page.dart';
+import 'package:brain2/screens/add_new_bill.dart';
 import 'package:brain2/overlays/text_edit.dart';
 import 'package:brain2/overlays/delete_confirmation_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
-import 'package:brain2/screens/add_page.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
+import 'package:brain2/models/bill_transaction.dart' as model;
 
 class BillCategoryPage extends StatefulWidget {
   const BillCategoryPage({
     super.key,
+    required this.categoryId,
     this.categoryTitle = 'ΔΕΗ',
     this.onBack,
     this.onAdd,
   });
 
+  final String categoryId;
   final String categoryTitle;
   final VoidCallback? onBack;
   final VoidCallback? onAdd;
@@ -33,11 +38,93 @@ class BillCategoryPage extends StatefulWidget {
 class _BillCategoryPageState extends State<BillCategoryPage> {
   late String _name;
   ImageProvider? _photo;
+  List<model.BillTransaction> _recentTransactions = [];
+  bool _isLoadingTransactions = true;
+  bool _isSaving = false;
+  bool _isDeleting = false;
 
   @override
   void initState() {
     super.initState();
     _name = widget.categoryTitle;
+    _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    try {
+      final transactions = await BillTransactionsRepository.instance
+          .fetchTransactionsByCategory(categoryId: widget.categoryId);
+
+      // Sort by due date descending (most recent first) and take first 4
+      final sorted = List<model.BillTransaction>.from(transactions)
+        ..sort((a, b) => b.dueDate.compareTo(a.dueDate));
+
+      if (mounted) {
+        setState(() {
+          _recentTransactions = sorted.take(4).toList();
+          _isLoadingTransactions = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingTransactions = false;
+        });
+      }
+    }
+  }
+
+  String _formatDeadline(DateTime dueDate, model.BillStatus status) {
+    final today = DateTime.now();
+    final dateOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final daysDiff = dateOnly.difference(todayOnly).inDays;
+
+    if (daysDiff == 0) {
+      return 'Today';
+    }
+    if (daysDiff == 1) {
+      return 'Tomorrow';
+    }
+    if (daysDiff > 1) {
+      return 'in $daysDiff days';
+    }
+
+    // Past dates
+    if (daysDiff == -1 && status != model.BillStatus.paid) {
+      return 'yesterday';
+    }
+    if (daysDiff < 0 && status != model.BillStatus.paid) {
+      return '${-daysDiff} days ago';
+    }
+
+    // Paid and past deadline -> full date
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${dueDate.day} ${months[dueDate.month - 1]} ${dueDate.year}';
+  }
+
+  BillStatusType _mapTransactionStatus(model.BillStatus status) {
+    switch (status) {
+      case model.BillStatus.paid:
+        return BillStatusType.paid;
+      case model.BillStatus.pending:
+        return BillStatusType.pending;
+      case model.BillStatus.overdue:
+        return BillStatusType.overdue;
+    }
   }
 
   Future<void> _editName(BuildContext context) async {
@@ -49,9 +136,55 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
     );
 
     if (updated != null && updated.isNotEmpty && updated != _name) {
+      // Check for duplicate name
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+      final normalizedUpdated = updated.trim().toLowerCase();
+      final isDuplicate = categories.any(
+        (cat) =>
+            cat.id != widget.categoryId &&
+            cat.title.trim().toLowerCase() == normalizedUpdated,
+      );
+
+      if (isDuplicate) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('A category with this name already exists'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
       setState(() {
-        _name = updated;
+        _isSaving = true;
       });
+
+      try {
+        final updatedCategory = await BillCategoriesRepository.instance
+            .updateBillCategory(id: widget.categoryId, title: updated);
+
+        if (mounted) {
+          setState(() {
+            _name = updatedCategory.title;
+            _isSaving = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update name: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -138,14 +271,49 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
 
     if (confirmed == true) {
       HapticFeedback.mediumImpact();
-      // Show confirmation message briefly, then go back
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bill and history deleted'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      Navigator.pop(context);
+
+      setState(() {
+        _isDeleting = true;
+      });
+
+      try {
+        // Delete category from Supabase (CASCADE will delete transactions)
+        await BillCategoriesRepository.instance.deleteBillCategory(
+          widget.categoryId,
+        );
+
+        // Clear transactions cache to ensure consistency
+        await BillTransactionsRepository.instance.fetchBillTransactions(
+          forceRefresh: true,
+        );
+
+        if (mounted) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bill and history deleted'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Navigate back with result indicating deletion occurred
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isDeleting = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -161,9 +329,22 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
             onBack: widget.onBack ?? () => Navigator.pop(context),
             onAdd:
                 widget.onAdd ??
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const AddPage()),
-                ),
+                () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddNewBillPage(
+                        categoryId: widget.categoryId,
+                        categoryTitle: _name,
+                      ),
+                    ),
+                  );
+
+                  // Reload transactions from cache when returning
+                  if (mounted) {
+                    await _loadTransactions();
+                  }
+                },
             paddingTop: 68,
             paddingBottom: 10,
             paddingHorizontal: 15,
@@ -172,6 +353,9 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
           ),
           Expanded(
             child: SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -240,14 +424,14 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                     child: SettingsMenu(
                       label: 'Name',
                       rightText: true,
-                      rightLabel: _name,
+                      rightLabel: _isSaving ? 'Saving...' : _name,
                       icon: SvgPicture.asset(
                         AppIcons.home,
                         width: 24,
                         height: 24,
                       ),
                       place: SettingsMenuPlace.defaultPlace,
-                      onRightTap: () => _editName(context),
+                      onRightTap: _isSaving ? null : () => _editName(context),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -257,14 +441,21 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                     child: CategoryTitle(
                       title: 'Transactions',
                       buttonLabel: 'View all',
-                      onViewAll: () {
-                        Navigator.push(
+                      onViewAll: () async {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                BillTransactionsPage(categoryTitle: _name),
+                            builder: (context) => BillTransactionsPage(
+                              categoryId: widget.categoryId,
+                              categoryTitle: _name,
+                            ),
                           ),
                         );
+
+                        // Reload transactions from cache when returning
+                        if (mounted) {
+                          await _loadTransactions();
+                        }
                       },
                     ),
                   ),
@@ -272,165 +463,124 @@ class _BillCategoryPageState extends State<BillCategoryPage> {
                   // Bill items
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 15),
-                    child: Column(
-                      children: [
-                        BillsCard(
-                          type: BillsCardType.detailed,
-                          title: _name,
-                          subtitle: 'in 6 days',
-                          amount: '-46.28€',
-                          status: BillStatusType.pending,
-                          width: double.infinity,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BillDetailsPage(
-                                  categoryTitle: _name,
-                                  amount: '-46.28€',
-                                  status: BillStatusType.pending,
-                                  deadline: 'in 6 days',
-                                  createdOn: '1 Nov 2025',
+                    child: _isLoadingTransactions
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : _recentTransactions.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                'No transactions yet',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.detailed,
-                          title: _name,
-                          subtitle: '17 November 2025',
-                          amount: '-34.76€',
-                          status: BillStatusType.paid,
-                          width: double.infinity,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BillDetailsPage(
-                                  categoryTitle: _name,
-                                  amount: '-34.76€',
-                                  status: BillStatusType.paid,
-                                  deadline: '17 November 2025',
-                                  createdOn: '1 Nov 2025',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.detailed,
-                          title: _name,
-                          subtitle: '6 October 2025',
-                          amount: '-37.58€',
-                          status: BillStatusType.overdue,
-                          width: double.infinity,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BillDetailsPage(
-                                  categoryTitle: _name,
-                                  amount: '-37.58€',
-                                  status: BillStatusType.overdue,
-                                  deadline: '6 October 2025',
-                                  createdOn: '1 Nov 2025',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.detailed,
-                          title: _name,
-                          subtitle: '4 September 2025',
-                          amount: '-32.14€',
-                          status: BillStatusType.paid,
-                          width: double.infinity,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BillDetailsPage(
-                                  categoryTitle: _name,
-                                  amount: '-32.14€',
-                                  status: BillStatusType.paid,
-                                  deadline: '4 September 2025',
-                                  createdOn: '1 Nov 2025',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 4),
-                        BillsCard(
-                          type: BillsCardType.detailed,
-                          title: _name,
-                          subtitle: '4 August 2025',
-                          amount: '-65.31€',
-                          status: BillStatusType.paid,
-                          width: double.infinity,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BillDetailsPage(
-                                  categoryTitle: _name,
-                                  amount: '-65.31€',
-                                  status: BillStatusType.paid,
-                                  deadline: '4 August 2025',
-                                  createdOn: '1 Nov 2025',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                            ),
+                          )
+                        : Column(
+                            children: _recentTransactions.map((transaction) {
+                              final formattedAmount =
+                                  '${transaction.amount.toStringAsFixed(2)}€';
+                              final formattedDeadline = _formatDeadline(
+                                transaction.dueDate,
+                                transaction.status,
+                              );
+                              final status = _mapTransactionStatus(
+                                transaction.status,
+                              );
+
+                              return Column(
+                                children: [
+                                  BillsCard(
+                                    type: BillsCardType.detailed,
+                                    title: _name,
+                                    subtitle: formattedDeadline,
+                                    amount: formattedAmount,
+                                    status: status,
+                                    width: double.infinity,
+                                    onTap: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => BillDetailsPage(
+                                            transactionId: transaction.id,
+                                          ),
+                                        ),
+                                      );
+
+                                      // Reload transactions from cache when returning
+                                      if (mounted) {
+                                        await _loadTransactions();
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                              );
+                            }).toList(),
+                          ),
                   ),
                   const SizedBox(height: 30),
                   // Delete button
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 15),
                     child: GestureDetector(
-                      onTap: () => _confirmDelete(context),
+                      onTap: _isDeleting ? null : () => _confirmDelete(context),
                       behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        height: 52,
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F1F1),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Delete $_name',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.left,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w400,
-                                  color: Color(0xFFFF0000),
+                      child: Opacity(
+                        opacity: _isDeleting ? 0.5 : 1.0,
+                        child: Container(
+                          height: 52,
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F1F1),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _isDeleting ? 'Deleting...' : 'Delete $_name',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.left,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w400,
+                                    color: Color(0xFFFF0000),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            SvgPicture.asset(
-                              AppIcons.arrow,
-                              width: 24,
-                              height: 24,
-                              colorFilter: const ColorFilter.mode(
-                                Color(0xFFFF0000),
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              _isDeleting
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Color(0xFFFF0000),
+                                            ),
+                                      ),
+                                    )
+                                  : SvgPicture.asset(
+                                      AppIcons.arrow,
+                                      width: 24,
+                                      height: 24,
+                                      colorFilter: const ColorFilter.mode(
+                                        Color(0xFFFF0000),
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

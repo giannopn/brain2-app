@@ -72,8 +72,8 @@ class _BillsPageState extends State<BillsPage> {
             .toList();
 
         if (categoryTransactions.isEmpty) {
-          // No transactions yet, default to pending
-          statuses[category.id] = BillStatusType.pending;
+          // No transactions yet, default to paid
+          statuses[category.id] = BillStatusType.paid;
         } else {
           // Check if any transaction is overdue
           final hasOverdue = categoryTransactions.any(
@@ -219,15 +219,21 @@ class _BillsPageState extends State<BillsPage> {
                           return Column(
                             children: [
                               GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
+                                onTap: () async {
+                                  await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => BillCategoryPage(
+                                        categoryId: category.id,
                                         categoryTitle: category.title,
                                       ),
                                     ),
                                   );
+
+                                  // Always reload data when returning from category page
+                                  if (mounted) {
+                                    await _loadData();
+                                  }
                                 },
                                 behavior: HitTestBehavior.opaque,
                                 child: BillsCard(
