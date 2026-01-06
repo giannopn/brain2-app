@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/bill_status.dart';
 import 'package:brain2/widgets/settings_menu.dart';
@@ -167,6 +168,11 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     _deadline = _formatDate(tx.dueDate);
     _createdOn = _formatDate(tx.createdAt);
     _categoryTitle = categoryTitle;
+
+    // Load receipt image if available
+    if (tx.receiptUrl != null && tx.receiptUrl!.isNotEmpty) {
+      _loadReceiptImage(tx.receiptUrl!);
+    }
   }
 
   Future<void> _updateTransactionOnServer({
@@ -293,7 +299,10 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
         _photo = FileImage(File(picked.path));
       });
       _resolvePhotoSize(context);
-      widget.onAddPhoto?.call();
+      final receiptKey = await _uploadReceiptAndSave(picked.path);
+      if (receiptKey != null) {
+        widget.onAddPhoto?.call();
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -321,7 +330,10 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
         _photo = FileImage(File(picked.path));
       });
       _resolvePhotoSize(context);
-      widget.onAddPhoto?.call();
+      final receiptKey = await _uploadReceiptAndSave(picked.path);
+      if (receiptKey != null) {
+        widget.onAddPhoto?.call();
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -333,12 +345,143 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
     }
   }
 
-  void _removePhoto() {
+  Future<String?> _uploadReceiptAndSave(String localPath) async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to upload.')),
+        );
+        return null;
+      }
+
+      final file = File(localPath);
+      final ext = localPath.split('.').last.toLowerCase();
+      final mime = _mimeFromExt(ext);
+      final filename =
+          '${widget.transactionId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final key = '${user.id}/${widget.transactionId}/$filename';
+
+      final bytes = await file.readAsBytes();
+      await client.storage
+          .from('receipts')
+          .uploadBinary(
+            key,
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: mime),
+          );
+
+      // Persist key to transaction
+      await BillTransactionsRepository.instance.updateBillTransaction(
+        id: widget.transactionId,
+        receiptUrl: key,
+      );
+
+      return key;
+    } on StorageException catch (se) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: ${se.message}')));
+      }
+      return null;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: ${e.toString()}')),
+        );
+      }
+      return null;
+    }
+  }
+
+  String _mimeFromExt(String ext) {
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'heic':
+        return 'image/heic';
+      case 'heif':
+        return 'image/heif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  Future<void> _loadReceiptImage(String storageKey) async {
+    try {
+      final client = Supabase.instance.client;
+      final signedUrl = await client.storage
+          .from('receipts')
+          .createSignedUrl(storageKey, 3600); // 1 hour validity
+
+      if (mounted) {
+        setState(() {
+          _photo = NetworkImage(signedUrl);
+        });
+        _resolvePhotoSize(context);
+      }
+    } catch (e) {
+      // Silently fail if image can't be loaded (e.g., deleted from storage)
+      if (mounted) {
+        setState(() {
+          _photo = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _removePhoto() async {
     HapticFeedback.selectionClick();
+
+    // Get current transaction to find the receiptUrl
+    model.BillTransaction? tx;
+    final cached = BillTransactionsRepository.instance.cachedTransactions;
+    if (cached != null) {
+      try {
+        tx = cached.firstWhere((t) => t.id == widget.transactionId);
+      } catch (_) {}
+    }
+
+    final receiptUrl = tx?.receiptUrl;
+
+    // Clear local state immediately for responsive UI
     setState(() {
       _photo = null;
       _photoSize = null;
     });
+
+    // Delete from storage and update database
+    if (receiptUrl != null && receiptUrl.isNotEmpty) {
+      try {
+        final client = Supabase.instance.client;
+
+        // Delete from storage
+        await client.storage.from('receipts').remove([receiptUrl]);
+
+        // Update transaction to clear receiptUrl
+        await BillTransactionsRepository.instance.updateBillTransaction(
+          id: widget.transactionId,
+          receiptUrl: '',
+        );
+      } catch (e) {
+        // Show error if deletion fails
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove photo: ${e.toString()}'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _resolvePhotoSize(BuildContext context) {

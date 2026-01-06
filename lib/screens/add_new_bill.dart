@@ -62,6 +62,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   bool _hasInitializedFlow = false;
   bool _isSaving = false;
   final ImagePicker _imagePicker = ImagePicker();
+  String? _uploadedReceiptPath;
 
   @override
   void initState() {
@@ -242,6 +243,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
         _photo = FileImage(File(picked.path));
       });
       _resolvePhotoSize(context);
+      _uploadedReceiptPath = await _uploadReceipt(picked.path);
       widget.onAddPhoto?.call();
     } catch (e) {
       if (!mounted) return;
@@ -270,6 +272,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
         _photo = FileImage(File(picked.path));
       });
       _resolvePhotoSize(context);
+      _uploadedReceiptPath = await _uploadReceipt(picked.path);
       widget.onAddPhoto?.call();
     } catch (e) {
       if (!mounted) return;
@@ -282,12 +285,96 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
     }
   }
 
-  void _removePhoto() {
+  Future<String?> _uploadReceipt(String localPath) async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to upload.')),
+        );
+        return null;
+      }
+
+      final file = File(localPath);
+      final ext = localPath.split('.').last.toLowerCase();
+      final mime = _mimeFromExt(ext);
+      final filename = 'new_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final key = '${user.id}/pending/$filename';
+
+      final bytes = await file.readAsBytes();
+      await client.storage
+          .from('receipts')
+          .uploadBinary(
+            key,
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: mime),
+          );
+      return key;
+    } on StorageException catch (se) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: ${se.message}')));
+      }
+      return null;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: ${e.toString()}')),
+        );
+      }
+      return null;
+    }
+  }
+
+  String _mimeFromExt(String ext) {
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'heic':
+        return 'image/heic';
+      case 'heif':
+        return 'image/heif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  Future<void> _removePhoto() async {
     HapticFeedback.selectionClick();
+
+    final uploadedPath = _uploadedReceiptPath;
+
+    // Clear local state immediately for responsive UI
     setState(() {
       _photo = null;
       _photoSize = null;
+      _uploadedReceiptPath = null;
     });
+
+    // Delete from storage if it was uploaded
+    if (uploadedPath != null && uploadedPath.isNotEmpty) {
+      try {
+        final client = Supabase.instance.client;
+        await client.storage.from('receipts').remove([uploadedPath]);
+      } catch (e) {
+        // Show error if deletion fails
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove photo: ${e.toString()}'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _resolvePhotoSize(BuildContext context) {
@@ -660,7 +747,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
         amount: amount,
         dueDate: _deadlineDate,
         status: _mapBillStatus(_status),
-        receiptUrl: null,
+        receiptUrl: _uploadedReceiptPath,
       );
 
       if (!mounted) return;
