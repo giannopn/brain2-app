@@ -166,10 +166,7 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
 
     try {
       final newCategory = await BillCategoriesRepository.instance
-          .createBillCategory(
-            title: _categoryName,
-            imageUrl: null, // TODO: Add image upload support
-          );
+          .createBillCategory(title: _categoryName, imageUrl: null);
 
       if (!mounted) return;
 

@@ -8,6 +8,7 @@ import 'package:brain2/screens/help_feedback_page.dart';
 import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/screens/bills_page.dart';
 import 'package:brain2/screens/notifications_settings.dart';
+import 'package:brain2/screens/login_page.dart';
 import 'package:brain2/overlays/delete_confirmation_swipe.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/widgets/navigation_bar.dart' as custom;
@@ -332,11 +333,14 @@ class _ProfilePageState extends State<ProfilePage>
                         await Supabase.instance.client.auth.signOut();
                         ProfileRepository.instance.clearCache();
 
-                        // Pop all routes and return to AuthGate (root)
+                        // Navigate to login page with animation
                         if (mounted) {
-                          Navigator.of(
-                            context,
-                          ).popUntil((route) => route.isFirst);
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (context) => const LoginPage(),
+                            ),
+                            (route) => false,
+                          );
                         }
                       }
                     },
