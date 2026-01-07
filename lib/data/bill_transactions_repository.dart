@@ -1,11 +1,16 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:brain2/models/bill_transaction.dart';
+import 'package:flutter/foundation.dart';
+import 'package:brain2/services/notification_service.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
 
 class BillTransactionsRepository {
   BillTransactionsRepository._internal() {
     Supabase.instance.client.auth.onAuthStateChange.listen((event) {
       if (event.event == AuthChangeEvent.signedOut) {
+        // On sign out, clear local cache and cancel all scheduled notifications
         clearCache();
+        NotificationService.instance.cancelAll();
       }
     });
   }
@@ -14,6 +19,7 @@ class BillTransactionsRepository {
       BillTransactionsRepository._internal();
 
   List<BillTransaction>? _cachedTransactions;
+  NotificationScheduleInfo? lastNotificationInfo;
 
   List<BillTransaction>? get cachedTransactions => _cachedTransactions;
 
@@ -112,6 +118,25 @@ class BillTransactionsRepository {
       _cachedTransactions = [newTransaction, ..._cachedTransactions!];
     }
 
+    // Schedule local notification if pending or overdue and due date is today or future
+    try {
+      if (newTransaction.status == BillStatus.pending ||
+          newTransaction.status == BillStatus.overdue) {
+        final info = await NotificationService.instance.scheduleDueNotification(
+          transactionId: newTransaction.id,
+          title: _buildNotificationTitle(newTransaction),
+          body: _buildNotificationBody(newTransaction),
+          dueDate: newTransaction.dueDate,
+        );
+        if (info != null) {
+          lastNotificationInfo = info;
+        }
+      }
+    } catch (e, st) {
+      debugPrint('createBillTransaction: notification schedule failed: $e');
+      debugPrint('$st');
+    }
+
     return newTransaction;
   }
 
@@ -157,6 +182,44 @@ class BillTransactionsRepository {
       }).toList();
     }
 
+    // Update notifications according to changes
+    try {
+      if (status != null) {
+        if (status == BillStatus.paid) {
+          await NotificationService.instance.cancelForTransaction(
+            updatedTransaction.id,
+          );
+        } else if (status == BillStatus.pending ||
+            status == BillStatus.overdue) {
+          final info = await NotificationService.instance
+              .rescheduleForTransaction(
+                transactionId: updatedTransaction.id,
+                title: _buildNotificationTitle(updatedTransaction),
+                body: _buildNotificationBody(updatedTransaction),
+                dueDate: updatedTransaction.dueDate,
+              );
+          if (info != null) {
+            lastNotificationInfo = info;
+          }
+        }
+      } else if (dueDate != null) {
+        // Due date changed only
+        final info = await NotificationService.instance
+            .rescheduleForTransaction(
+              transactionId: updatedTransaction.id,
+              title: _buildNotificationTitle(updatedTransaction),
+              body: _buildNotificationBody(updatedTransaction),
+              dueDate: updatedTransaction.dueDate,
+            );
+        if (info != null) {
+          lastNotificationInfo = info;
+        }
+      }
+    } catch (e, st) {
+      debugPrint('updateBillTransaction: notification update failed: $e');
+      debugPrint('$st');
+    }
+
     return updatedTransaction;
   }
 
@@ -189,9 +252,60 @@ class BillTransactionsRepository {
           .where((t) => t.id != id)
           .toList();
     }
+
+    // Cancel scheduled notification for this transaction
+    try {
+      await NotificationService.instance.cancelForTransaction(id);
+    } catch (e, st) {
+      debugPrint('deleteBillTransaction: notification cancel failed: $e');
+      debugPrint('$st');
+    }
   }
 
   void clearCache() {
     _cachedTransactions = null;
+  }
+
+  /// Optional: Re-create notifications for all cached pending transactions.
+  /// Useful after app start when you fetch and cache transactions.
+  Future<void> syncNotificationsFromCached() async {
+    final list = _cachedTransactions;
+    if (list == null || list.isEmpty) return;
+    for (final t in list) {
+      if (t.status == BillStatus.pending || t.status == BillStatus.overdue) {
+        try {
+          await NotificationService.instance.scheduleDueNotification(
+            transactionId: t.id,
+            title: _buildNotificationTitle(t),
+            body: _buildNotificationBody(t),
+            dueDate: t.dueDate,
+          );
+        } catch (e, st) {
+          debugPrint('syncNotificationsFromCached: schedule failed: $e');
+          debugPrint('$st');
+        }
+      }
+    }
+  }
+
+  String _buildNotificationTitle(BillTransaction t) {
+    final categoryTitle = _lookupCategoryTitle(t.categoryId);
+    return '${categoryTitle ?? 'Bill'} due today';
+  }
+
+  String _buildNotificationBody(BillTransaction t) {
+    final formattedAmount = t.amount.toStringAsFixed(2);
+    return 'Amount: $formattedAmount€';
+  }
+
+  String? _lookupCategoryTitle(String categoryId) {
+    final cached = BillCategoriesRepository.instance.cachedCategories;
+    if (cached == null || cached.isEmpty) return null;
+    for (final category in cached) {
+      if (category.id == categoryId && category.title.isNotEmpty) {
+        return category.title;
+      }
+    }
+    return null;
   }
 }

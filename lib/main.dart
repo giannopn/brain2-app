@@ -3,9 +3,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/screens/login_page.dart';
+import 'package:brain2/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize and request notification permissions early
+  await NotificationService.instance.init();
+  await NotificationService.instance.requestPermissions();
 
   await Supabase.initialize(
     url: 'https://rowicwwvaxcohuuhubqu.supabase.co',

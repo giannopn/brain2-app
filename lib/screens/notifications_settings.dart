@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/toggle_switch.dart';
+import 'package:brain2/services/notification_service.dart';
 
 // Settings manager to persist toggle states
 class _NotificationSettings {
@@ -23,6 +24,8 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
   late bool _notifyOnDeadlines;
   late bool _earlyReminders;
   late bool _overdueNotifications;
+  List<ScheduledNotificationOverview> _scheduled = const [];
+  bool _loading = true;
 
   @override
   void initState() {
@@ -32,6 +35,7 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
     _notifyOnDeadlines = _NotificationSettings.notifyOnDeadlines;
     _earlyReminders = _NotificationSettings.earlyReminders;
     _overdueNotifications = _NotificationSettings.overdueNotifications;
+    _refreshScheduled();
   }
 
   @override
@@ -136,6 +140,92 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
                       place: _SettingsPlace.lower,
                     ),
                   ],
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Local time: ${_formatNow()}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Scheduled notifications',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_loading)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8),
+                            child: Text('Loading…'),
+                          )
+                        else if (_scheduled.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8),
+                            child: Text('No scheduled notifications'),
+                          )
+                        else
+                          Column(
+                            children: _scheduled
+                                .map(
+                                  (s) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF7F7F7),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            s.title,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              fontFamily: 'Inter',
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'When: ${_formatDateTime(s.scheduledTime)}',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'In: ${_formatDuration(s.timeUntil)}',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -200,6 +290,36 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
         ],
       ),
     );
+  }
+
+  Future<void> _refreshScheduled() async {
+    setState(() {
+      _loading = true;
+    });
+    final list = await NotificationService.instance.getScheduledNotifications();
+    setState(() {
+      _scheduled = list;
+      _loading = false;
+    });
+  }
+
+  String _formatNow() => _formatDateTime(DateTime.now());
+
+  static String _two(int v) => v.toString().padLeft(2, '0');
+
+  static String _formatDateTime(DateTime dt) {
+    return '${dt.year}-${_two(dt.month)}-${_two(dt.day)} ${_two(dt.hour)}:${_two(dt.minute)}';
+  }
+
+  static String _formatDuration(Duration d) {
+    if (d.isNegative) return 'now';
+    final totalMinutes = d.inMinutes;
+    final days = totalMinutes ~/ (60 * 24);
+    final hours = (totalMinutes % (60 * 24)) ~/ 60;
+    final minutes = totalMinutes % 60;
+    if (days > 0) return '${days}d ${hours}h ${minutes}m';
+    if (hours > 0) return '${hours}h ${minutes}m';
+    return '${minutes}m';
   }
 }
 
