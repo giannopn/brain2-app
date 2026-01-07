@@ -8,6 +8,7 @@ import 'package:brain2/screens/help_feedback_page.dart';
 import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/screens/bills_page.dart';
 import 'package:brain2/screens/notifications_settings.dart';
+import 'package:brain2/screens/general_settings.dart';
 import 'package:brain2/screens/login_page.dart';
 import 'package:brain2/overlays/delete_confirmation_swipe.dart';
 import 'package:brain2/theme/app_icons.dart';
@@ -18,6 +19,7 @@ import 'package:brain2/widgets/consistency_bar.dart';
 import 'package:brain2/widgets/settings_menu.dart';
 import 'package:brain2/data/profile_repository.dart';
 import 'package:brain2/models/profile.dart';
+import 'package:brain2/services/sync_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -122,15 +124,23 @@ class _ProfilePageState extends State<ProfilePage>
 
     _syncAnimationController!.repeat();
 
-    await Future.delayed(const Duration(seconds: 2));
+    // Perform actual sync
+    final success = await SyncService.instance.syncAll();
 
     _syncAnimationController!.stop();
     _syncAnimationController!.reset();
 
+    if (!mounted) return;
+
     setState(() {
       _isSyncing = false;
-      _syncLabel = 'Synced Now';
+      _syncLabel = success ? 'Synced Now' : 'Sync Failed';
     });
+
+    // Reload profile from cache after sync
+    if (success) {
+      _loadCachedProfile();
+    }
   }
 
   @override
@@ -215,6 +225,13 @@ class _ProfilePageState extends State<ProfilePage>
                       width: 24,
                       height: 24,
                     ),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const GeneralSettings(),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 4),
                   SettingsMenu(

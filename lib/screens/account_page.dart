@@ -245,8 +245,15 @@ class _AccountPageState extends State<AccountPage> {
                                   confirmText: 'Swipe to confirm',
                                 );
                             if (confirmed == true && mounted) {
-                              // Perform delete account action
-                              Navigator.of(context).pop();
+                              // Show message that deletion is not possible yet
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'For security reasons, the deletion of the account inside the app is not possible yet. Please contact us.',
+                                  ),
+                                  duration: Duration(seconds: 5),
+                                ),
+                              );
                             }
                           },
                           child: Padding(
