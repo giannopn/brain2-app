@@ -170,6 +170,9 @@ class NotificationService {
     debugPrint('NotificationService: requesting permissions...');
 
     try {
+      bool grantedAndroid = true;
+      bool grantedDarwin = true;
+
       // Request Android permissions
       final androidImpl = _plugin
           .resolvePlatformSpecificImplementation<
@@ -178,13 +181,16 @@ class NotificationService {
       if (androidImpl != null) {
         try {
           final granted = await androidImpl.requestNotificationsPermission();
+          final enabled = await androidImpl.areNotificationsEnabled();
+          grantedAndroid = (granted ?? enabled) ?? false;
           debugPrint(
-            'NotificationService: Android permission result: $granted',
+            'NotificationService: Android permission result: granted=$granted enabled=$enabled',
           );
         } catch (e) {
           debugPrint(
             'NotificationService: Android permission request failed: $e',
           );
+          grantedAndroid = false;
         }
       }
 
@@ -202,15 +208,20 @@ class NotificationService {
             critical: false,
           );
           debugPrint('NotificationService: iOS permissions granted: $granted');
-          return granted ?? false;
+          grantedDarwin = granted ?? false;
         } catch (e, st) {
           debugPrint('NotificationService: iOS permission request failed: $e');
           debugPrint('$st');
-          return false;
+          grantedDarwin = false;
         }
       }
 
-      return true; // Web or other platforms
+      // Web or other platforms: assume granted if no specific implementation
+      if (androidImpl == null && darwinImpl == null) {
+        return true;
+      }
+
+      return grantedAndroid && grantedDarwin;
     } catch (e, st) {
       debugPrint('NotificationService: requestPermissions error: $e');
       debugPrint('$st');

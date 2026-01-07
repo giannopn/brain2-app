@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 class ToggleSwitch extends StatefulWidget {
   final bool initialValue;
   final ValueChanged<bool>? onChanged;
+  final bool enabled;
 
-  const ToggleSwitch({super.key, this.initialValue = false, this.onChanged});
+  const ToggleSwitch({
+    super.key,
+    this.initialValue = false,
+    this.onChanged,
+    this.enabled = true,
+  });
 
   @override
   State<ToggleSwitch> createState() => _ToggleSwitchState();
@@ -46,6 +52,8 @@ class _ToggleSwitchState extends State<ToggleSwitch>
   }
 
   void _toggle() {
+    if (!widget.enabled) return;
+
     setState(() {
       _isOn = !_isOn;
       if (_isOn) {
@@ -59,20 +67,21 @@ class _ToggleSwitchState extends State<ToggleSwitch>
 
   @override
   Widget build(BuildContext context) {
+    final bool disabled = !widget.enabled;
     return GestureDetector(
-      onTap: _toggle,
+      onTap: disabled ? null : _toggle,
       child: AnimatedBuilder(
         animation: _animationController,
         builder: (context, child) {
+          final Color trackColor = disabled
+              ? _offColor.withOpacity(0.6)
+              : Color.lerp(_offColor, _onColor, _animationController.value)!;
+
           return Container(
             width: _width,
             height: _height,
             decoration: BoxDecoration(
-              color: Color.lerp(
-                _offColor,
-                _onColor,
-                _animationController.value,
-              ),
+              color: trackColor,
               borderRadius: BorderRadius.circular(100),
             ),
             child: Stack(

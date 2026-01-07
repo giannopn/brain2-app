@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/toggle_switch.dart';
 import 'package:brain2/services/notification_service.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
 
 // Settings manager to persist toggle states
 class _NotificationSettings {
   static bool enableNotifications = true;
-  static bool notifyOnDeadlines = true;
-  static bool earlyReminders = true;
-  static bool overdueNotifications = true;
 }
 
 class NotificationsSettings extends StatefulWidget {
@@ -21,9 +19,6 @@ class NotificationsSettings extends StatefulWidget {
 
 class _NotificationsSettingsState extends State<NotificationsSettings> {
   late bool _enableNotifications;
-  late bool _notifyOnDeadlines;
-  late bool _earlyReminders;
-  late bool _overdueNotifications;
   List<ScheduledNotificationOverview> _scheduled = const [];
   bool _loading = true;
 
@@ -32,9 +27,6 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
     super.initState();
     // Load saved settings
     _enableNotifications = _NotificationSettings.enableNotifications;
-    _notifyOnDeadlines = _NotificationSettings.notifyOnDeadlines;
-    _earlyReminders = _NotificationSettings.earlyReminders;
-    _overdueNotifications = _NotificationSettings.overdueNotifications;
     _refreshScheduled();
   }
 
@@ -63,18 +55,13 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
                   _buildSettingItem(
                     label: 'Enable Notifications',
                     value: _enableNotifications,
-                    onChanged: (value) {
-                      setState(() {
-                        _enableNotifications = value;
-                        _NotificationSettings.enableNotifications = value;
-                      });
-                    },
+                    onChanged: _onEnableNotificationsChanged,
                     place: _SettingsPlace.single,
                   ),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(14, 4, 14, 4),
                     child: Text(
-                      'Enable push notifications',
+                      'Enable push notifications on deadlines',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
@@ -84,62 +71,6 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
                       ),
                     ),
                   ),
-                  // Bills Notifications Section - only show if notifications are enabled
-                  if (_enableNotifications) ...[
-                    const SizedBox(height: 24),
-                    // Bills Notifications Section Title
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(14, 0, 14, 4),
-                      child: Text(
-                        'Bills Notifications',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF000000),
-                          fontFamily: 'Inter',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Notify on Deadlines
-                    _buildSettingItem(
-                      label: 'Notify on Deadlines',
-                      value: _notifyOnDeadlines,
-                      onChanged: (value) {
-                        setState(() {
-                          _notifyOnDeadlines = value;
-                          _NotificationSettings.notifyOnDeadlines = value;
-                        });
-                      },
-                      place: _SettingsPlace.upper,
-                    ),
-                    const SizedBox(height: 4),
-                    // Early Reminders
-                    _buildSettingItem(
-                      label: 'Early Reminders',
-                      value: _earlyReminders,
-                      onChanged: (value) {
-                        setState(() {
-                          _earlyReminders = value;
-                          _NotificationSettings.earlyReminders = value;
-                        });
-                      },
-                      place: _SettingsPlace.middle,
-                    ),
-                    const SizedBox(height: 4),
-                    // Overdue Notifications
-                    _buildSettingItem(
-                      label: 'Overdue Notifications',
-                      value: _overdueNotifications,
-                      onChanged: (value) {
-                        setState(() {
-                          _overdueNotifications = value;
-                          _NotificationSettings.overdueNotifications = value;
-                        });
-                      },
-                      place: _SettingsPlace.lower,
-                    ),
-                  ],
                   const SizedBox(height: 24),
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -297,8 +228,13 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
       _loading = true;
     });
     final list = await NotificationService.instance.getScheduledNotifications();
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final filtered = list
+        .where((s) => !s.scheduledTime.isBefore(startOfToday))
+        .toList();
     setState(() {
-      _scheduled = list;
+      _scheduled = filtered;
       _loading = false;
     });
   }
@@ -320,6 +256,55 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
     if (days > 0) return '${days}d ${hours}h ${minutes}m';
     if (hours > 0) return '${hours}h ${minutes}m';
     return '${minutes}m';
+  }
+
+  Future<void> _onEnableNotificationsChanged(bool value) async {
+    if (!value) {
+      setState(() {
+        _enableNotifications = false;
+        _NotificationSettings.enableNotifications = false;
+      });
+      try {
+        await NotificationService.instance.cancelAll();
+        await _refreshScheduled();
+      } catch (e) {
+        debugPrint('NotificationsSettings: cancelAll failed: $e');
+      }
+      return;
+    }
+
+    final granted = await NotificationService.instance.requestPermissions();
+    if (!mounted) return;
+
+    if (granted) {
+      setState(() {
+        _enableNotifications = true;
+        _NotificationSettings.enableNotifications = true;
+      });
+      try {
+        await BillTransactionsRepository.instance.syncNotificationsFromCached();
+        await _refreshScheduled();
+      } catch (e) {
+        // Keep UI responsive even if reschedule fails
+        debugPrint('NotificationsSettings: reschedule failed: $e');
+      }
+    } else {
+      setState(() {
+        _enableNotifications = false;
+        _NotificationSettings.enableNotifications = false;
+      });
+      _showPermissionDeniedMessage();
+    }
+  }
+
+  void _showPermissionDeniedMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Notifications are disabled. Please enable them in system settings.',
+        ),
+      ),
+    );
   }
 }
 
