@@ -80,6 +80,64 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Test notification button
+                        ElevatedButton(
+                          onPressed: () async {
+                            await NotificationService.instance
+                                .showTestNotification();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Test notification sent!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF007AFF),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('Send Test Notification'),
+                        ),
+                        const SizedBox(height: 8),
+                        // Scheduled test notification button
+                        ElevatedButton(
+                          onPressed: () async {
+                            await NotificationService.instance
+                                .scheduleTestNotification();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Scheduled test notification for 30 seconds from now!',
+                                  ),
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF34C759),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('Schedule Test (30s)'),
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           'Local time: ${_formatNow()}',
                           style: const TextStyle(

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -74,10 +74,73 @@ class NotificationService {
     if (_initialized) return;
 
     try {
-      // Initialize time zones and set local location
+      // Initialize time zones
       tz.initializeTimeZones();
-      final String localTimeZone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(localTimeZone));
+
+      // Get the local timezone name from the platform
+      String? timeZoneName;
+      try {
+        const platform = MethodChannel('flutter.io/timezone');
+        timeZoneName = await platform.invokeMethod<String>('getLocalTimezone');
+      } catch (e) {
+        debugPrint(
+          'NotificationService: Could not get timezone from platform: $e',
+        );
+      }
+
+      // Set the location based on timezone name, or fallback to a reasonable default
+      if (timeZoneName != null && timeZoneName.isNotEmpty) {
+        try {
+          tz.setLocalLocation(tz.getLocation(timeZoneName));
+          debugPrint('NotificationService: Set timezone to $timeZoneName');
+        } catch (e) {
+          debugPrint(
+            'NotificationService: Unknown timezone $timeZoneName, using UTC',
+          );
+          tz.setLocalLocation(tz.getLocation('UTC'));
+        }
+      } else {
+        // Try to detect from DateTime offset as fallback
+        final now = DateTime.now();
+        final offset = now.timeZoneOffset;
+        debugPrint(
+          'NotificationService: Using offset-based timezone (offset: $offset)',
+        );
+
+        // Find a timezone that matches the current offset
+        // Common timezones for testing
+        final commonTimezones = [
+          'America/New_York',
+          'America/Chicago',
+          'America/Denver',
+          'America/Los_Angeles',
+          'Europe/London',
+          'Europe/Paris',
+          'Asia/Tokyo',
+          'Australia/Sydney',
+        ];
+
+        bool found = false;
+        for (final tzName in commonTimezones) {
+          try {
+            final location = tz.getLocation(tzName);
+            final tzTime = tz.TZDateTime.from(now, location);
+            if (tzTime.timeZoneOffset == offset) {
+              tz.setLocalLocation(location);
+              debugPrint('NotificationService: Matched timezone to $tzName');
+              found = true;
+              break;
+            }
+          } catch (_) {}
+        }
+
+        if (!found) {
+          tz.setLocalLocation(tz.getLocation('UTC'));
+          debugPrint(
+            'NotificationService: Could not match timezone, using UTC',
+          );
+        }
+      }
     } catch (e, st) {
       // If time zone detection fails, default to UTC but keep going
       debugPrint('NotificationService: timezone init failed: $e');
@@ -125,13 +188,20 @@ class NotificationService {
           _channelId,
           _channelName,
           description: _channelDescription,
-          importance: Importance.high,
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          showBadge: true,
         ),
       );
       // Request notification permission for Android 13+
       try {
         await androidImpl.requestNotificationsPermission();
         debugPrint('NotificationService: Android permission requested');
+
+        // Request exact alarm permission for Android 13+
+        await androidImpl.requestExactAlarmsPermission();
+        debugPrint('NotificationService: Exact alarms permission requested');
       } catch (e) {
         debugPrint(
           'NotificationService: Android permission request (may be older version): $e',
@@ -186,6 +256,18 @@ class NotificationService {
           debugPrint(
             'NotificationService: Android permission result: granted=$granted enabled=$enabled',
           );
+
+          // Also request exact alarms permission
+          try {
+            await androidImpl.requestExactAlarmsPermission();
+            debugPrint(
+              'NotificationService: Exact alarms permission requested',
+            );
+          } catch (e) {
+            debugPrint(
+              'NotificationService: Exact alarms permission request: $e',
+            );
+          }
         } catch (e) {
           debugPrint(
             'NotificationService: Android permission request failed: $e',
@@ -244,13 +326,38 @@ class NotificationService {
       // Ensure permissions are requested before scheduling
       await requestPermissions();
 
+      // Check if exact alarms are permitted on Android
+      final androidImpl = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (androidImpl != null) {
+        try {
+          final canSchedule = await androidImpl.canScheduleExactNotifications();
+          if (canSchedule == false) {
+            debugPrint(
+              'NotificationService: Exact alarms not permitted, requesting...',
+            );
+            await androidImpl.requestExactAlarmsPermission();
+          }
+        } catch (e) {
+          debugPrint(
+            'NotificationService: Could not check exact alarm permission: $e',
+          );
+        }
+      }
+
       final int id = _stableIdFrom(transactionId);
+
+      // Convert dueDate to local timezone first (it likely comes as UTC from Supabase)
+      // Create a local DateTime with the same year/month/day as the dueDate
+      final dueDateLocal = dueDate.toLocal();
 
       // 02:10 local time on due date
       final scheduledLocal = DateTime(
-        dueDate.year,
-        dueDate.month,
-        dueDate.day,
+        dueDateLocal.year,
+        dueDateLocal.month,
+        dueDateLocal.day,
         2,
         10,
       );
@@ -275,12 +382,17 @@ class NotificationService {
       }
 
       final details = NotificationDetails(
-        android: const AndroidNotificationDetails(
+        android: AndroidNotificationDetails(
           _channelId,
           _channelName,
           channelDescription: _channelDescription,
-          importance: Importance.high,
+          importance: Importance.max,
           priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          playSound: true,
+          visibility: NotificationVisibility.public,
+          styleInformation: BigTextStyleInformation(body),
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -290,17 +402,59 @@ class NotificationService {
         ),
       );
 
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduledTz,
-        details,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        payload: transactionId,
+      debugPrint('NotificationService: Attempting to schedule notification');
+      debugPrint('NotificationService: ID=$id, Title=$title');
+      debugPrint('NotificationService: Scheduled time: $scheduledTz');
+      debugPrint('NotificationService: Now: $nowTz');
+      debugPrint(
+        'NotificationService: Time until: ${scheduledTz.difference(nowTz)}',
       );
+
+      try {
+        // Try to schedule with exact alarms first
+        await _plugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledTz,
+          details,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          payload: transactionId,
+        );
+        debugPrint(
+          'NotificationService: Successfully scheduled with exactAllowWhileIdle',
+        );
+      } catch (exactError) {
+        debugPrint('NotificationService: Exact schedule failed: $exactError');
+        debugPrint(
+          'NotificationService: Falling back to inexactAllowWhileIdle',
+        );
+
+        try {
+          // Fallback to inexact alarms
+          await _plugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledTz,
+            details,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            payload: transactionId,
+          );
+          debugPrint(
+            'NotificationService: Successfully scheduled with inexactAllowWhileIdle',
+          );
+        } catch (inexactError) {
+          debugPrint(
+            'NotificationService: Inexact schedule also failed: $inexactError',
+          );
+          rethrow;
+        }
+      }
 
       final timeUntil = scheduledTz.difference(tz.TZDateTime.now(tz.local));
       _scheduled[transactionId] = ScheduledNotificationOverview(
@@ -365,6 +519,158 @@ class NotificationService {
   getScheduledNotifications() async {
     return _scheduled.values.toList()
       ..sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+  }
+
+  /// Show an immediate test notification (useful for debugging)
+  Future<void> showTestNotification() async {
+    try {
+      await requestPermissions();
+
+      const details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: _channelDescription,
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          playSound: true,
+          visibility: NotificationVisibility.public,
+          styleInformation: BigTextStyleInformation(
+            'This is a test notification to verify that notifications are working correctly.',
+          ),
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          sound: 'default',
+        ),
+      );
+
+      await _plugin.show(
+        999999, // Use a high ID unlikely to conflict
+        'Test Notification',
+        'This is a test notification',
+        details,
+      );
+
+      debugPrint('NotificationService: Test notification shown');
+    } catch (e, st) {
+      debugPrint('NotificationService: showTestNotification error: $e');
+      debugPrint('$st');
+    }
+  }
+
+  /// Schedule a test notification 30 seconds in the future
+  Future<void> scheduleTestNotification() async {
+    try {
+      await requestPermissions();
+
+      // Check if exact alarms are permitted on Android
+      final androidImpl = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (androidImpl != null) {
+        try {
+          final canSchedule = await androidImpl.canScheduleExactNotifications();
+          debugPrint(
+            'NotificationService: Can schedule exact alarms: $canSchedule',
+          );
+          if (canSchedule == false) {
+            debugPrint(
+              'NotificationService: Requesting exact alarms permission...',
+            );
+            await androidImpl.requestExactAlarmsPermission();
+          }
+        } catch (e) {
+          debugPrint(
+            'NotificationService: Could not check exact alarm permission: $e',
+          );
+        }
+      }
+
+      final nowTz = tz.TZDateTime.now(tz.local);
+      final scheduledTz = nowTz.add(const Duration(seconds: 30));
+
+      const details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: _channelDescription,
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          playSound: true,
+          visibility: NotificationVisibility.public,
+          styleInformation: BigTextStyleInformation(
+            'This scheduled test notification was triggered 30 seconds after you tapped the button.',
+          ),
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          sound: 'default',
+        ),
+      );
+
+      debugPrint('NotificationService: Scheduling test notification');
+      debugPrint('NotificationService: Scheduled for: $scheduledTz');
+      debugPrint('NotificationService: Now: $nowTz');
+
+      try {
+        // Try exact alarms first
+        await _plugin.zonedSchedule(
+          999998, // Use a high ID unlikely to conflict
+          'Scheduled Test Notification',
+          'This notification was scheduled for 30 seconds from now',
+          scheduledTz,
+          details,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+        debugPrint(
+          'NotificationService: Test notification scheduled with exactAllowWhileIdle',
+        );
+      } catch (exactError) {
+        debugPrint(
+          'NotificationService: Exact test schedule failed: $exactError',
+        );
+        debugPrint(
+          'NotificationService: Falling back to inexactAllowWhileIdle',
+        );
+
+        try {
+          // Fallback to inexact alarms
+          await _plugin.zonedSchedule(
+            999998, // Use a high ID unlikely to conflict
+            'Scheduled Test Notification',
+            'This notification was scheduled for 30 seconds from now',
+            scheduledTz,
+            details,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+          debugPrint(
+            'NotificationService: Test notification scheduled with inexactAllowWhileIdle',
+          );
+        } catch (inexactError) {
+          debugPrint(
+            'NotificationService: Inexact test schedule also failed: $inexactError',
+          );
+          rethrow;
+        }
+      }
+    } catch (e, st) {
+      debugPrint('NotificationService: scheduleTestNotification error: $e');
+      debugPrint('$st');
+    }
   }
 
   // Stable, deterministic ID from a string (e.g., UUID)

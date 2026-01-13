@@ -60,6 +60,29 @@ class BillTransaction {
   }
 
   factory BillTransaction.fromMap(Map<String, dynamic> map) {
+    // Parse due_date as a date-only string (e.g., "2026-01-15")
+    // Create it as a local DateTime, not UTC
+    DateTime parsedDueDate;
+    if (map['due_date'] != null) {
+      final dateStr = map['due_date'] as String;
+      try {
+        final parts = dateStr.split('-');
+        if (parts.length == 3) {
+          parsedDueDate = DateTime(
+            int.parse(parts[0]), // year
+            int.parse(parts[1]), // month
+            int.parse(parts[2]), // day
+          );
+        } else {
+          parsedDueDate = DateTime.parse(dateStr);
+        }
+      } catch (_) {
+        parsedDueDate = DateTime.now();
+      }
+    } else {
+      parsedDueDate = DateTime.now();
+    }
+
     return BillTransaction(
       id: map['id'] as String? ?? '',
       userId: map['user_id'] as String? ?? '',
@@ -67,9 +90,7 @@ class BillTransaction {
       amount: (map['amount'] is num)
           ? (map['amount'] as num).toDouble()
           : double.tryParse(map['amount']?.toString() ?? '0') ?? 0.0,
-      dueDate: map['due_date'] != null
-          ? DateTime.parse(map['due_date'] as String)
-          : DateTime.now(),
+      dueDate: parsedDueDate,
       status: map['status'] != null
           ? BillStatus.fromJson(map['status'] as String)
           : BillStatus.pending,
