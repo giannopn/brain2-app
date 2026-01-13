@@ -20,6 +20,8 @@ import 'package:brain2/widgets/settings_menu.dart';
 import 'package:brain2/data/profile_repository.dart';
 import 'package:brain2/models/profile.dart';
 import 'package:brain2/services/sync_service.dart';
+import 'package:brain2/services/notification_preferences.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -140,6 +142,16 @@ class _ProfilePageState extends State<ProfilePage>
     // Reload profile from cache after sync
     if (success) {
       _loadCachedProfile();
+
+      // Reschedule notifications if enabled
+      if (NotificationPreferences.instance.enableNotifications) {
+        try {
+          await BillTransactionsRepository.instance
+              .syncNotificationsFromCached();
+        } catch (e) {
+          debugPrint('ProfilePage: notification reschedule failed: $e');
+        }
+      }
     }
   }
 

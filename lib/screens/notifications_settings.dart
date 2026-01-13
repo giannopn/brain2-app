@@ -3,12 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/toggle_switch.dart';
 import 'package:brain2/services/notification_service.dart';
+import 'package:brain2/services/notification_preferences.dart';
 import 'package:brain2/data/bill_transactions_repository.dart';
-
-// Settings manager to persist toggle states
-class _NotificationSettings {
-  static bool enableNotifications = true;
-}
 
 class NotificationsSettings extends StatefulWidget {
   const NotificationsSettings({super.key});
@@ -25,8 +21,8 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
   @override
   void initState() {
     super.initState();
-    // Load saved settings
-    _enableNotifications = _NotificationSettings.enableNotifications;
+    // Load saved settings from persistent storage
+    _enableNotifications = NotificationPreferences.instance.enableNotifications;
     _refreshScheduled();
   }
 
@@ -320,8 +316,8 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
     if (!value) {
       setState(() {
         _enableNotifications = false;
-        _NotificationSettings.enableNotifications = false;
       });
+      await NotificationPreferences.instance.setEnableNotifications(false);
       try {
         await NotificationService.instance.cancelAll();
         await _refreshScheduled();
@@ -337,8 +333,8 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
     if (granted) {
       setState(() {
         _enableNotifications = true;
-        _NotificationSettings.enableNotifications = true;
       });
+      await NotificationPreferences.instance.setEnableNotifications(true);
       try {
         await BillTransactionsRepository.instance.syncNotificationsFromCached();
         await _refreshScheduled();
@@ -349,8 +345,8 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
     } else {
       setState(() {
         _enableNotifications = false;
-        _NotificationSettings.enableNotifications = false;
       });
+      await NotificationPreferences.instance.setEnableNotifications(false);
       _showPermissionDeniedMessage();
     }
   }

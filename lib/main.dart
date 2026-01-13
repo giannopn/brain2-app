@@ -4,10 +4,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:brain2/screens/home_page.dart';
 import 'package:brain2/screens/login_page.dart';
 import 'package:brain2/services/notification_service.dart';
+import 'package:brain2/services/notification_preferences.dart';
 import 'package:brain2/services/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize notification preferences (must be first for sync_service)
+  await NotificationPreferences.instance.init();
 
   // Initialize and request notification permissions early
   await NotificationService.instance.init();

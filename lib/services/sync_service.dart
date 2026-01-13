@@ -1,6 +1,7 @@
 import 'package:brain2/data/profile_repository.dart';
 import 'package:brain2/data/bill_categories_repository.dart';
 import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/services/notification_preferences.dart';
 import 'package:flutter/foundation.dart';
 
 /// Service to sync all data from Supabase to local cache
@@ -51,6 +52,20 @@ class SyncService {
         forceRefresh: true,
       );
       debugPrint('SyncService: Bill transactions synced');
+
+      // Reschedule all notifications after sync (only if enabled)
+      if (NotificationPreferences.instance.enableNotifications) {
+        try {
+          await BillTransactionsRepository.instance
+              .syncNotificationsFromCached();
+          debugPrint('SyncService: Notifications rescheduled');
+        } catch (e, st) {
+          debugPrint('SyncService: Notification reschedule failed: $e');
+          debugPrint('$st');
+        }
+      } else {
+        debugPrint('SyncService: Notifications disabled, skipping reschedule');
+      }
 
       _lastSyncTime = DateTime.now();
       debugPrint('SyncService: Sync completed successfully at $_lastSyncTime');
