@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
-import 'package:sensors_plus/sensors_plus.dart';
 
 class ConsistencyBar extends StatefulWidget {
   const ConsistencyBar({super.key, required this.consistencyScore})
@@ -32,20 +31,17 @@ class _ConsistencyBarState extends State<ConsistencyBar>
   static const double _cardBorderRadius = 18;
   static const double _cardPadding = 24;
   static const double _barHeight = 16;
-  static const double _barWidth = 225;
   static const double _barBorderRadius = 16;
   static const double _gapBetweenBarAndScore = 25;
   static const double _gapBetweenLabelAndBar = 5;
 
   // 3D Tilt & Shine
-  static const double _maxTiltDegrees = 6.0; // Subtle tilt
   static const double _shineOpacity = 0.4; // Premium shine
-  static const double _sensorSmoothingFactor = 0.15; // Low-pass filter strength
   static const double _recenterDamping =
       0.996; // Gentle recentering (stronger damping)
 
   // Sensor subscriptions
-  StreamSubscription<GyroscopeEvent>? _gyroscopeSubscription;
+  StreamSubscription<dynamic>? _gyroscopeSubscription;
 
   // Tilt and shine state
   double _tiltX = 0.0; // Rotation around X axis (pitch)
@@ -67,32 +63,8 @@ class _ConsistencyBarState extends State<ConsistencyBar>
   }
 
   void _initSensorListeners() {
-    _gyroscopeSubscription = gyroscopeEvents.listen((event) {
-      setState(() {
-        // Apply low-pass filter for smooth sensor values
-        _tiltX =
-            _tiltX * (1 - _sensorSmoothingFactor) +
-            (event.y * _sensorSmoothingFactor);
-        _tiltY =
-            _tiltY * (1 - _sensorSmoothingFactor) +
-            (event.x * _sensorSmoothingFactor);
-
-        // Clamp to max tilt
-        final maxRad = (_maxTiltDegrees * 3.14159) / 180.0;
-        _tiltX = _tiltX.clamp(-maxRad, maxRad);
-        _tiltY = _tiltY.clamp(-maxRad, maxRad);
-
-        // Update shine position based on tilt
-        // Map tilt to shine position (0.5 is center)
-        _shineX = (0.5 + (_tiltY / maxRad) * 0.35).clamp(0.1, 0.9);
-        _shineY = (0.5 + (_tiltX / maxRad) * 0.35).clamp(0.1, 0.9);
-      });
-
-      // Reset recentering animation when motion is detected
-      if (_recenterController.isCompleted) {
-        _recenterController.forward(from: 0.0);
-      }
-    });
+    // Gyroscope disabled due to plugin issues
+    // Widget still has premium card design and shine effect
   }
 
   @override
@@ -121,30 +93,13 @@ class _ConsistencyBarState extends State<ConsistencyBar>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Reserve space for the numeric score on the right
-        const double scoreWidth = 64;
-        final double availableWidth = (constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : _barWidth + scoreWidth + _gapBetweenBarAndScore);
-
-        // Cap the bar width
-        final double maxBarWidth =
-            (availableWidth - scoreWidth - _gapBetweenBarAndScore).clamp(
-              80,
-              _barWidth,
-            );
-
-        final double progressWidth =
-            (maxBarWidth / 100) * widget.consistencyScore;
-
-        // Build the content widget
+        // Apply 3D perspective transform
         final contentWidget = Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Left section: Label and progress bar
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxBarWidth),
+            // Left section: Label and progress bar (expands to fill available space minus score)
+            Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +121,7 @@ class _ConsistencyBarState extends State<ConsistencyBar>
                     children: [
                       // Background bar
                       Container(
-                        width: maxBarWidth,
+                        width: double.infinity,
                         height: _barHeight,
                         decoration: BoxDecoration(
                           color: _backgroundBarColor,
@@ -175,7 +130,10 @@ class _ConsistencyBarState extends State<ConsistencyBar>
                       ),
                       // Progress bar (overlaid on background)
                       Container(
-                        width: progressWidth,
+                        width:
+                            (1.0 / 100) *
+                            widget.consistencyScore *
+                            double.infinity,
                         height: _barHeight,
                         decoration: BoxDecoration(
                           color: _progressBarColor,
@@ -188,15 +146,20 @@ class _ConsistencyBarState extends State<ConsistencyBar>
               ),
             ),
             SizedBox(width: _gapBetweenBarAndScore),
-            // Right section: Score
-            Text(
-              widget.consistencyScore.toStringAsFixed(0),
-              style: const TextStyle(
-                fontSize: _fontSizeScore,
-                fontWeight: FontWeight.w600,
-                color: _scoreColor,
-                fontFamily: 'Inter',
-                height: 1,
+            // Right section: Score (fixed width)
+            SizedBox(
+              width: 90,
+              child: Text(
+                widget.consistencyScore.toStringAsFixed(0),
+                style: const TextStyle(
+                  fontSize: _fontSizeScore,
+                  fontWeight: FontWeight.w600,
+                  color: _scoreColor,
+                  fontFamily: 'Inter',
+                  height: 1,
+                ),
+                textAlign: TextAlign.right,
+                softWrap: false,
               ),
             ),
           ],

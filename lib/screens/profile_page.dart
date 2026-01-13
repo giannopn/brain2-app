@@ -176,7 +176,7 @@ class _ProfilePageState extends State<ProfilePage>
                   const SizedBox(height: 24),
                   // Consistency Bar Section
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
                     child: ConsistencyBar(consistencyScore: consistencyScore),
                   ),
                   const SizedBox(height: 24),
