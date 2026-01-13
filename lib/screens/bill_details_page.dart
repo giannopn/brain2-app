@@ -599,18 +599,9 @@ class _BillDetailsPageState extends State<BillDetailsPage> {
             border: Border.all(color: Colors.grey.shade300, width: 2),
           ),
           child: ClipOval(
-            child: Image.asset(
-              AppIcons.billDefaultIcon,
+            child: SvgPicture.asset(
+              'assets/png_photos/bill_deafult_icon.svg',
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey.shade200,
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey.shade400,
-                  ),
-                );
-              },
             ),
           ),
         ),

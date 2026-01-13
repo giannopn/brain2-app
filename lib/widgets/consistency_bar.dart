@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:sensors_plus/sensors_plus.dart';
 
 class ConsistencyBar extends StatefulWidget {
   const ConsistencyBar({super.key, required this.consistencyScore})
@@ -35,17 +36,18 @@ class _ConsistencyBarState extends State<ConsistencyBar>
   static const double _gapBetweenBarAndScore = 25;
   static const double _gapBetweenLabelAndBar = 5;
 
-  // 3D Tilt & Shine
-  static const double _shineOpacity = 0.4; // Premium shine
-  static const double _recenterDamping =
-      0.996; // Gentle recentering (stronger damping)
+  // Parallax Translation & Shine
+  static const double _maxTranslationPixels = 4.0; // Subtle translation
+  static const double _shineOpacity = 0.35; // Premium shine
+  static const double _sensorSmoothingFactor = 0.08; // Smoother low-pass filter
+  static const double _recenterDamping = 0.99; // Gentle recentering
 
   // Sensor subscriptions
-  StreamSubscription<dynamic>? _gyroscopeSubscription;
+  StreamSubscription<GyroscopeEvent>? _gyroscopeSubscription;
 
-  // Tilt and shine state
-  double _tiltX = 0.0; // Rotation around X axis (pitch)
-  double _tiltY = 0.0; // Rotation around Y axis (roll)
+  // Translation and shine state
+  double _translateX = 0.0; // Horizontal translation offset
+  double _translateY = 0.0; // Vertical translation offset
   double _shineX = 0.5; // Shine position X (0.0 - 1.0)
   double _shineY = 0.5; // Shine position Y (0.0 - 1.0)
   late AnimationController _recenterController;
@@ -53,18 +55,59 @@ class _ConsistencyBarState extends State<ConsistencyBar>
   @override
   void initState() {
     super.initState();
-
     _recenterController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 1200),
     );
-
     _initSensorListeners();
   }
 
   void _initSensorListeners() {
-    // Gyroscope disabled due to plugin issues
-    // Widget still has premium card design and shine effect
+    try {
+      _gyroscopeSubscription = gyroscopeEvents.listen(
+        (GyroscopeEvent event) {
+          if (!mounted) return;
+
+          setState(() {
+            // Apply low-pass filter for smooth sensor values
+            _translateX =
+                _translateX * (1 - _sensorSmoothingFactor) +
+                (event.y * _sensorSmoothingFactor * _maxTranslationPixels);
+            _translateY =
+                _translateY * (1 - _sensorSmoothingFactor) +
+                (-event.x * _sensorSmoothingFactor * _maxTranslationPixels);
+
+            // Clamp translation to max pixels
+            _translateX = _translateX.clamp(
+              -_maxTranslationPixels,
+              _maxTranslationPixels,
+            );
+            _translateY = _translateY.clamp(
+              -_maxTranslationPixels,
+              _maxTranslationPixels,
+            );
+
+            // Update shine position based on translation
+            final normalizedX = _translateX / _maxTranslationPixels;
+            final normalizedY = _translateY / _maxTranslationPixels;
+            _shineX = (0.5 + normalizedX * 0.25).clamp(0.2, 0.8);
+            _shineY = (0.5 + normalizedY * 0.25).clamp(0.2, 0.8);
+          });
+
+          // Reset recentering animation when motion detected
+          if (_recenterController.isCompleted) {
+            _recenterController.forward(from: 0.0);
+          }
+        },
+        onError: (e) {
+          debugPrint('Gyroscope error: $e');
+        },
+        cancelOnError: false,
+      );
+    } catch (e) {
+      debugPrint('Gyroscope initialization error (non-critical): $e');
+      // Effect will gracefully degrade - card will be static but still functional
+    }
   }
 
   @override
@@ -74,12 +117,17 @@ class _ConsistencyBarState extends State<ConsistencyBar>
     super.dispose();
   }
 
-  /// Smooth recentering: gradually return tilt to neutral
+  /// Smooth recentering: gradually return translation to neutral
   void _applyRecentering(double progress) {
-    // Inverse damping: as progress goes from 0->1, multiply by recenterDamping
-    final dampingFactor = pow(_recenterDamping, progress * 3).toDouble();
-    _tiltX *= dampingFactor;
-    _tiltY *= dampingFactor;
+    final dampingFactor = pow(_recenterDamping, progress * 2.0).toDouble();
+    _translateX *= dampingFactor;
+    _translateY *= dampingFactor;
+
+    // Update shine position during recentering
+    final normalizedX = _translateX / _maxTranslationPixels;
+    final normalizedY = _translateY / _maxTranslationPixels;
+    _shineX = (0.5 + normalizedX * 0.25).clamp(0.2, 0.8);
+    _shineY = (0.5 + normalizedY * 0.25).clamp(0.2, 0.8);
   }
 
   @override
@@ -129,15 +177,16 @@ class _ConsistencyBarState extends State<ConsistencyBar>
                         ),
                       ),
                       // Progress bar (overlaid on background)
-                      Container(
-                        width:
-                            (1.0 / 100) *
-                            widget.consistencyScore *
-                            double.infinity,
-                        height: _barHeight,
-                        decoration: BoxDecoration(
-                          color: _progressBarColor,
-                          borderRadius: BorderRadius.circular(_barBorderRadius),
+                      FractionallySizedBox(
+                        widthFactor: widget.consistencyScore / 100,
+                        child: Container(
+                          height: _barHeight,
+                          decoration: BoxDecoration(
+                            color: _progressBarColor,
+                            borderRadius: BorderRadius.circular(
+                              _barBorderRadius,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -165,16 +214,9 @@ class _ConsistencyBarState extends State<ConsistencyBar>
           ],
         );
 
-        // Apply 3D perspective transform
-        final perspective = Matrix4.identity()
-          ..setEntry(3, 2, 0.001) // Perspective depth
-          ..rotateX(_tiltX)
-          ..rotateY(_tiltY);
-
-        // Premium card with shine overlay
-        return Transform(
-          transform: perspective,
-          alignment: Alignment.center,
+        // Premium card with parallax translation and shine overlay
+        return Transform.translate(
+          offset: Offset(_translateX, _translateY),
           child: Stack(
             children: [
               // Card background with gradient
