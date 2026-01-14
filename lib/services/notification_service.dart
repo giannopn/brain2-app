@@ -358,8 +358,8 @@ class NotificationService {
         dueDateLocal.year,
         dueDateLocal.month,
         dueDateLocal.day,
-        2,
         10,
+        00,
       );
 
       final nowTz = tz.TZDateTime.now(tz.local);

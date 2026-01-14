@@ -143,6 +143,20 @@ class BillTransactionsRepository {
       debugPrint('$st');
     }
 
+    // Refresh categories sorted by usage to update counts
+    try {
+      final updatedCategories = await BillCategoriesRepository.instance
+          .fetchCategoriesSortedByUsage(forceRefresh: true);
+      debugPrint('=== Updated Category Usage Counts ===');
+      for (final cat in updatedCategories) {
+        debugPrint('${cat.title}: ${cat.usageCount} transaction(s)');
+      }
+      debugPrint('=====================================');
+    } catch (e, st) {
+      debugPrint('createBillTransaction: category usage refresh failed: $e');
+      debugPrint('$st');
+    }
+
     return newTransaction;
   }
 
@@ -264,6 +278,20 @@ class BillTransactionsRepository {
       await NotificationService.instance.cancelForTransaction(id);
     } catch (e, st) {
       debugPrint('deleteBillTransaction: notification cancel failed: $e');
+      debugPrint('$st');
+    }
+
+    // Refresh categories sorted by usage to update counts
+    try {
+      final updatedCategories = await BillCategoriesRepository.instance
+          .fetchCategoriesSortedByUsage(forceRefresh: true);
+      debugPrint('=== Updated Category Usage Counts ===');
+      for (final cat in updatedCategories) {
+        debugPrint('${cat.title}: ${cat.usageCount} transaction(s)');
+      }
+      debugPrint('=====================================');
+    } catch (e, st) {
+      debugPrint('deleteBillTransaction: category usage refresh failed: $e');
       debugPrint('$st');
     }
   }

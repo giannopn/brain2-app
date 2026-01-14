@@ -32,7 +32,11 @@ class _AddPageState extends State<AddPage> {
   Future<void> _loadCategories() async {
     try {
       final categories = await BillCategoriesRepository.instance
-          .fetchBillCategories();
+          .fetchCategoriesSortedByUsage();
+
+      // Explicitly sort by usage count (descending) to ensure correct order
+      categories.sort((a, b) => b.usageCount.compareTo(a.usageCount));
+
       if (mounted) {
         setState(() {
           _categories = categories;

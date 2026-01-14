@@ -21,6 +21,7 @@ class BillCategoriesRepository {
     _cachedCategories = categories;
   }
 
+  /// Fetch all bill categories for the current user
   Future<List<BillCategory>> fetchBillCategories({
     bool forceRefresh = false,
   }) async {
@@ -39,6 +40,43 @@ class BillCategoriesRepository {
         .select()
         .eq('user_id', user.id)
         .order('created_at', ascending: false);
+
+    final categories = (response as List<dynamic>)
+        .map((item) => BillCategory.fromMap(item as Map<String, dynamic>))
+        .toList();
+
+    _cachedCategories = categories;
+    return categories;
+  }
+
+  /// Fetch categories sorted by usage count (transaction frequency) for the current user.
+  /// Returns categories with highest usage_count first, then by created_at ascending.
+  /// This method uses local cache to provide instant UI updates.
+  /// Cache is refreshed when:
+  /// 1. App loads for the first time
+  /// 2. Categories screen is opened and cache is empty
+  /// 3. After a transaction is created or deleted (forceRefresh = true)
+  Future<List<BillCategory>> fetchCategoriesSortedByUsage({
+    bool forceRefresh = false,
+  }) async {
+    // Return cached sorted categories immediately if available and not forcing refresh
+    if (!forceRefresh && _cachedCategories != null) {
+      return _cachedCategories!;
+    }
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      clearCache();
+      return [];
+    }
+
+    // Fetch from the view that includes usage_count
+    final response = await Supabase.instance.client
+        .from('bill_categories_with_usage')
+        .select()
+        .eq('user_id', user.id)
+        .order('usage_count', ascending: false)
+        .order('created_at', ascending: true);
 
     final categories = (response as List<dynamic>)
         .map((item) => BillCategory.fromMap(item as Map<String, dynamic>))
