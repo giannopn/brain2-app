@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:brain2/widgets/text_top_bar.dart';
 import 'package:brain2/widgets/settings_menu.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -147,6 +148,8 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
 
   Future<void> _handleCreateCategory() async {
     if (_createdOverlayVisible || _isSaving) return;
+
+    HapticFeedback.mediumImpact();
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {

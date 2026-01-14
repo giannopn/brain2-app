@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -119,6 +120,8 @@ class _ProfilePageState extends State<ProfilePage>
   Future<void> _handleSync() async {
     if (_isSyncing || _syncAnimationController == null) return;
 
+    HapticFeedback.mediumImpact();
+
     setState(() {
       _isSyncing = true;
       _syncLabel = 'Syncing...';
@@ -138,6 +141,8 @@ class _ProfilePageState extends State<ProfilePage>
       _isSyncing = false;
       _syncLabel = success ? 'Synced Now' : 'Sync Failed';
     });
+
+    HapticFeedback.mediumImpact();
 
     // Reload profile from cache after sync
     if (success) {

@@ -34,7 +34,7 @@ class _ConsistencyBarState extends State<ConsistencyBar>
   static const double _barHeight = 16;
   static const double _barBorderRadius = 16;
   static const double _gapBetweenBarAndScore = 25;
-  static const double _gapBetweenLabelAndBar = 5;
+  static const double _gapBetweenLabelAndBar = 10;
 
   // Parallax Translation & Shine
   static const double _maxTranslationPixels = 4.0; // Subtle translation
