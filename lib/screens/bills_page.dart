@@ -61,11 +61,12 @@ class _BillsPageState extends State<BillsPage> {
 
   Future<void> _loadData() async {
     try {
-      // Load categories from cache
+      // Load categories sorted by usage count (highest to lowest)
       final categories = await BillCategoriesRepository.instance
-          .fetchBillCategories();
+          .fetchCategoriesSortedByUsage();
 
-      // Load all transactions to determine status for each category
+      // Explicitly sort by usage count (descending) to ensure correct order
+      categories.sort((a, b) => b.usageCount.compareTo(a.usageCount));
       final transactions = await BillTransactionsRepository.instance
           .fetchBillTransactions();
 
@@ -200,7 +201,7 @@ class _BillsPageState extends State<BillsPage> {
                   : RefreshIndicator(
                       onRefresh: () async {
                         await BillCategoriesRepository.instance
-                            .fetchBillCategories(forceRefresh: true);
+                            .fetchCategoriesSortedByUsage(forceRefresh: true);
                         await BillTransactionsRepository.instance
                             .fetchBillTransactions(forceRefresh: true);
                         await _loadData();

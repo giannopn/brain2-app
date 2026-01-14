@@ -9,6 +9,7 @@ class BillCategory {
     this.imageUrl,
     required this.createdAt,
     required this.updatedAt,
+    this.usageCount = 0,
   });
 
   final String id;
@@ -17,11 +18,13 @@ class BillCategory {
   final String? imageUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int usageCount;
 
   BillCategory copyWith({
     String? title,
     String? imageUrl,
     DateTime? updatedAt,
+    int? usageCount,
   }) {
     return BillCategory(
       id: id,
@@ -30,6 +33,7 @@ class BillCategory {
       imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      usageCount: usageCount ?? this.usageCount,
     );
   }
 
@@ -45,6 +49,7 @@ class BillCategory {
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : DateTime.now(),
+      usageCount: map['usage_count'] as int? ?? 0,
     );
   }
 
@@ -56,6 +61,7 @@ class BillCategory {
       'image_url': imageUrl,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'usage_count': usageCount,
     };
   }
 }

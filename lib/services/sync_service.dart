@@ -41,11 +41,11 @@ class SyncService {
       await ProfileRepository.instance.fetchProfile(forceRefresh: true);
       debugPrint('SyncService: Profile synced');
 
-      // Sync bill categories
-      await BillCategoriesRepository.instance.fetchBillCategories(
+      // Sync bill categories with usage count
+      await BillCategoriesRepository.instance.fetchCategoriesSortedByUsage(
         forceRefresh: true,
       );
-      debugPrint('SyncService: Bill categories synced');
+      debugPrint('SyncService: Bill categories with usage count synced');
 
       // Sync bill transactions
       await BillTransactionsRepository.instance.fetchBillTransactions(
