@@ -51,8 +51,14 @@ class BillTransactionsRepository {
         .map((item) => BillTransaction.fromMap(item as Map<String, dynamic>))
         .toList();
 
-    _cachedTransactions = transactions;
-    return transactions;
+    // Check and update overdue status for pending bills
+    final updatedTransactions = await _checkAndUpdateOverdueStatus(
+      transactions,
+      user.id,
+    );
+
+    _cachedTransactions = updatedTransactions;
+    return updatedTransactions;
   }
 
   /// Fetch transactions for a specific category
@@ -307,5 +313,81 @@ class BillTransactionsRepository {
       }
     }
     return null;
+  }
+
+  /// Check and update overdue status for pending transactions
+  /// Returns the updated list of transactions
+  Future<List<BillTransaction>> _checkAndUpdateOverdueStatus(
+    List<BillTransaction> transactions,
+    String userId,
+  ) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final updatedTransactions = <BillTransaction>[];
+
+    for (final transaction in transactions) {
+      // Only check pending transactions
+      if (transaction.status == BillStatus.pending) {
+        // Compare dates without time component
+        final dueDate = DateTime(
+          transaction.dueDate.year,
+          transaction.dueDate.month,
+          transaction.dueDate.day,
+        );
+
+        // If due date is before today, mark as overdue
+        if (dueDate.isBefore(today)) {
+          debugPrint(
+            'Updating transaction ${transaction.id} to overdue '
+            '(due: ${transaction.dueDate}, today: $today)',
+          );
+
+          try {
+            // Update in Supabase
+            await Supabase.instance.client
+                .from('bill_transactions')
+                .update({'status': BillStatus.overdue.toJson()})
+                .eq('id', transaction.id)
+                .eq('user_id', userId);
+
+            // Create updated transaction for cache
+            final updated = transaction.copyWith(
+              status: BillStatus.overdue,
+              updatedAt: DateTime.now(),
+            );
+
+            updatedTransactions.add(updated);
+
+            // Update notification
+            try {
+              await NotificationService.instance.rescheduleForTransaction(
+                transactionId: updated.id,
+                title: _buildNotificationTitle(updated),
+                body: _buildNotificationBody(updated),
+                dueDate: updated.dueDate,
+              );
+            } catch (e, st) {
+              debugPrint(
+                '_checkAndUpdateOverdueStatus: notification reschedule failed: $e',
+              );
+              debugPrint('$st');
+            }
+          } catch (e, st) {
+            debugPrint('_checkAndUpdateOverdueStatus: update failed: $e');
+            debugPrint('$st');
+            // On error, keep original transaction
+            updatedTransactions.add(transaction);
+          }
+        } else {
+          // Not overdue, keep original
+          updatedTransactions.add(transaction);
+        }
+      } else {
+        // Not pending, keep original
+        updatedTransactions.add(transaction);
+      }
+    }
+
+    return updatedTransactions;
   }
 }
