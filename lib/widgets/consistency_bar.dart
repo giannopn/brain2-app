@@ -37,7 +37,7 @@ class _ConsistencyBarState extends State<ConsistencyBar>
   static const double _gapBetweenLabelAndBar = 10;
 
   // Parallax Translation & Shine
-  static const double _maxTranslationPixels = 6.0;
+  static const double _maxTranslationPixels = 4.0;
   static const double _shineOpacity = 0.35;
   static const double _sensorSmoothingFactor = 0.12;
   static const double _recenterDamping = 0.98;
