@@ -2,7 +2,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:brain2/models/bill_transaction.dart';
 import 'package:flutter/foundation.dart';
 import 'package:brain2/services/notification_service.dart';
+import 'package:brain2/services/notification_preferences.dart';
 import 'package:brain2/data/bill_categories_repository.dart';
+import 'package:brain2/data/profile_repository.dart';
 
 class BillTransactionsRepository {
   BillTransactionsRepository._internal() {
@@ -125,22 +127,25 @@ class BillTransactionsRepository {
     }
 
     // Schedule local notification if pending or overdue and due date is today or future
-    try {
-      if (newTransaction.status == BillStatus.pending ||
-          newTransaction.status == BillStatus.overdue) {
-        final info = await NotificationService.instance.scheduleDueNotification(
-          transactionId: newTransaction.id,
-          title: _buildNotificationTitle(newTransaction),
-          body: _buildNotificationBody(newTransaction),
-          dueDate: newTransaction.dueDate,
-        );
-        if (info != null) {
-          lastNotificationInfo = info;
+    if (NotificationPreferences.instance.enableNotifications) {
+      try {
+        if (newTransaction.status == BillStatus.pending ||
+            newTransaction.status == BillStatus.overdue) {
+          final info = await NotificationService.instance
+              .scheduleDueNotification(
+                transactionId: newTransaction.id,
+                title: _buildNotificationTitle(newTransaction),
+                body: _buildNotificationBody(newTransaction),
+                dueDate: newTransaction.dueDate,
+              );
+          if (info != null) {
+            lastNotificationInfo = info;
+          }
         }
+      } catch (e, st) {
+        debugPrint('createBillTransaction: notification schedule failed: $e');
+        debugPrint('$st');
       }
-    } catch (e, st) {
-      debugPrint('createBillTransaction: notification schedule failed: $e');
-      debugPrint('$st');
     }
 
     // Refresh categories sorted by usage to update counts
@@ -154,6 +159,15 @@ class BillTransactionsRepository {
       debugPrint('=====================================');
     } catch (e, st) {
       debugPrint('createBillTransaction: category usage refresh failed: $e');
+      debugPrint('$st');
+    }
+
+    // Refresh profile consistency score
+    try {
+      await ProfileRepository.instance.fetchProfile(forceRefresh: true);
+      debugPrint('createBillTransaction: profile consistency score refreshed');
+    } catch (e, st) {
+      debugPrint('createBillTransaction: profile refresh failed: $e');
       debugPrint('$st');
     }
 
@@ -203,14 +217,28 @@ class BillTransactionsRepository {
     }
 
     // Update notifications according to changes
-    try {
-      if (status != null) {
-        if (status == BillStatus.paid) {
-          await NotificationService.instance.cancelForTransaction(
-            updatedTransaction.id,
-          );
-        } else if (status == BillStatus.pending ||
-            status == BillStatus.overdue) {
+    if (NotificationPreferences.instance.enableNotifications) {
+      try {
+        if (status != null) {
+          if (status == BillStatus.paid) {
+            await NotificationService.instance.cancelForTransaction(
+              updatedTransaction.id,
+            );
+          } else if (status == BillStatus.pending ||
+              status == BillStatus.overdue) {
+            final info = await NotificationService.instance
+                .rescheduleForTransaction(
+                  transactionId: updatedTransaction.id,
+                  title: _buildNotificationTitle(updatedTransaction),
+                  body: _buildNotificationBody(updatedTransaction),
+                  dueDate: updatedTransaction.dueDate,
+                );
+            if (info != null) {
+              lastNotificationInfo = info;
+            }
+          }
+        } else if (dueDate != null) {
+          // Due date changed only
           final info = await NotificationService.instance
               .rescheduleForTransaction(
                 transactionId: updatedTransaction.id,
@@ -222,21 +250,18 @@ class BillTransactionsRepository {
             lastNotificationInfo = info;
           }
         }
-      } else if (dueDate != null) {
-        // Due date changed only
-        final info = await NotificationService.instance
-            .rescheduleForTransaction(
-              transactionId: updatedTransaction.id,
-              title: _buildNotificationTitle(updatedTransaction),
-              body: _buildNotificationBody(updatedTransaction),
-              dueDate: updatedTransaction.dueDate,
-            );
-        if (info != null) {
-          lastNotificationInfo = info;
-        }
+      } catch (e, st) {
+        debugPrint('updateBillTransaction: notification update failed: $e');
+        debugPrint('$st');
       }
+    }
+
+    // Refresh profile consistency score
+    try {
+      await ProfileRepository.instance.fetchProfile(forceRefresh: true);
+      debugPrint('updateBillTransaction: profile consistency score refreshed');
     } catch (e, st) {
-      debugPrint('updateBillTransaction: notification update failed: $e');
+      debugPrint('updateBillTransaction: profile refresh failed: $e');
       debugPrint('$st');
     }
 
@@ -294,6 +319,15 @@ class BillTransactionsRepository {
       debugPrint('deleteBillTransaction: category usage refresh failed: $e');
       debugPrint('$st');
     }
+
+    // Refresh profile consistency score
+    try {
+      await ProfileRepository.instance.fetchProfile(forceRefresh: true);
+      debugPrint('deleteBillTransaction: profile consistency score refreshed');
+    } catch (e, st) {
+      debugPrint('deleteBillTransaction: profile refresh failed: $e');
+      debugPrint('$st');
+    }
   }
 
   void clearCache() {
@@ -305,6 +339,7 @@ class BillTransactionsRepository {
   Future<void> syncNotificationsFromCached() async {
     final list = _cachedTransactions;
     if (list == null || list.isEmpty) return;
+    if (!NotificationPreferences.instance.enableNotifications) return;
     for (final t in list) {
       if (t.status == BillStatus.pending || t.status == BillStatus.overdue) {
         try {
@@ -387,18 +422,20 @@ class BillTransactionsRepository {
             updatedTransactions.add(updated);
 
             // Update notification
-            try {
-              await NotificationService.instance.rescheduleForTransaction(
-                transactionId: updated.id,
-                title: _buildNotificationTitle(updated),
-                body: _buildNotificationBody(updated),
-                dueDate: updated.dueDate,
-              );
-            } catch (e, st) {
-              debugPrint(
-                '_checkAndUpdateOverdueStatus: notification reschedule failed: $e',
-              );
-              debugPrint('$st');
+            if (NotificationPreferences.instance.enableNotifications) {
+              try {
+                await NotificationService.instance.rescheduleForTransaction(
+                  transactionId: updated.id,
+                  title: _buildNotificationTitle(updated),
+                  body: _buildNotificationBody(updated),
+                  dueDate: updated.dueDate,
+                );
+              } catch (e, st) {
+                debugPrint(
+                  '_checkAndUpdateOverdueStatus: notification reschedule failed: $e',
+                );
+                debugPrint('$st');
+              }
             }
           } catch (e, st) {
             debugPrint('_checkAndUpdateOverdueStatus: update failed: $e');
