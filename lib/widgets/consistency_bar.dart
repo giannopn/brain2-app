@@ -37,10 +37,13 @@ class _ConsistencyBarState extends State<ConsistencyBar>
   static const double _gapBetweenLabelAndBar = 10;
 
   // Parallax Translation & Shine
-  static const double _maxTranslationPixels = 4.0; // Subtle translation
-  static const double _shineOpacity = 0.35; // Premium shine
-  static const double _sensorSmoothingFactor = 0.08; // Smoother low-pass filter
-  static const double _recenterDamping = 0.99; // Gentle recentering
+  static const double _maxTranslationPixels = 6.0;
+  static const double _shineOpacity = 0.35;
+  static const double _sensorSmoothingFactor = 0.12;
+  static const double _recenterDamping = 0.98;
+  static const Duration _sensorSamplingPeriod = Duration(
+    milliseconds: 16,
+  ); // ~60fps
 
   // Sensor subscriptions
   StreamSubscription<GyroscopeEvent>? _gyroscopeSubscription;
@@ -64,49 +67,51 @@ class _ConsistencyBarState extends State<ConsistencyBar>
 
   void _initSensorListeners() {
     try {
-      _gyroscopeSubscription = gyroscopeEvents.listen(
-        (GyroscopeEvent event) {
-          if (!mounted) return;
+      // For sensors_plus 6.x, use gyroscopeEventStream with sampling period
+      _gyroscopeSubscription =
+          gyroscopeEventStream(samplingPeriod: _sensorSamplingPeriod).listen(
+            (GyroscopeEvent event) {
+              if (!mounted) return;
 
-          setState(() {
-            // Apply low-pass filter for smooth sensor values
-            _translateX =
-                _translateX * (1 - _sensorSmoothingFactor) +
-                (event.y * _sensorSmoothingFactor * _maxTranslationPixels);
-            _translateY =
-                _translateY * (1 - _sensorSmoothingFactor) +
-                (-event.x * _sensorSmoothingFactor * _maxTranslationPixels);
+              setState(() {
+                // Apply low-pass filter for smooth sensor values
+                _translateX =
+                    _translateX * (1 - _sensorSmoothingFactor) +
+                    (-event.y * _sensorSmoothingFactor * _maxTranslationPixels);
+                _translateY =
+                    _translateY * (1 - _sensorSmoothingFactor) +
+                    (-event.x * _sensorSmoothingFactor * _maxTranslationPixels);
 
-            // Clamp translation to max pixels
-            _translateX = _translateX.clamp(
-              -_maxTranslationPixels,
-              _maxTranslationPixels,
-            );
-            _translateY = _translateY.clamp(
-              -_maxTranslationPixels,
-              _maxTranslationPixels,
-            );
+                // Clamp translation to max pixels
+                _translateX = _translateX.clamp(
+                  -_maxTranslationPixels,
+                  _maxTranslationPixels,
+                );
+                _translateY = _translateY.clamp(
+                  -_maxTranslationPixels,
+                  _maxTranslationPixels,
+                );
 
-            // Update shine position based on translation
-            final normalizedX = _translateX / _maxTranslationPixels;
-            final normalizedY = _translateY / _maxTranslationPixels;
-            _shineX = (0.5 + normalizedX * 0.25).clamp(0.2, 0.8);
-            _shineY = (0.5 + normalizedY * 0.25).clamp(0.2, 0.8);
-          });
+                // Update shine position based on translation
+                final normalizedX = _translateX / _maxTranslationPixels;
+                final normalizedY = _translateY / _maxTranslationPixels;
+                _shineX = (0.5 + normalizedX * 0.25).clamp(0.2, 0.8);
+                _shineY = (0.5 + normalizedY * 0.25).clamp(0.2, 0.8);
+              });
 
-          // Reset recentering animation when motion detected
-          if (_recenterController.isCompleted) {
-            _recenterController.forward(from: 0.0);
-          }
-        },
-        onError: (e) {
-          debugPrint('Gyroscope error: $e');
-        },
-        cancelOnError: false,
-      );
-    } catch (e) {
-      debugPrint('Gyroscope initialization error (non-critical): $e');
-      // Effect will gracefully degrade - card will be static but still functional
+              // Reset recentering animation when motion detected
+              if (_recenterController.isCompleted) {
+                _recenterController.forward(from: 0.0);
+              }
+            },
+            onError: (e) {
+              debugPrint('ConsistencyBar: Gyroscope error: $e');
+            },
+            cancelOnError: false,
+          );
+    } catch (e, stackTrace) {
+      debugPrint('ConsistencyBar: Gyroscope initialization error: $e');
+      debugPrint('ConsistencyBar: Stack trace: $stackTrace');
     }
   }
 
