@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:brain2/widgets/text_top_bar.dart';
 import 'package:brain2/widgets/settings_menu.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:brain2/theme/app_icons.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
 import 'package:brain2/overlays/text_edit.dart';
+import 'package:brain2/overlays/created_overlay.dart';
+import 'package:brain2/screens/bill_category.dart';
+import 'package:brain2/screens/bills_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
 
 class CreateNewBillCategoryPage extends StatefulWidget {
   const CreateNewBillCategoryPage({super.key});
@@ -18,6 +24,44 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
   String _categoryName = 'Set name';
   ImageProvider? _photo;
   bool _hasPromptedForName = false;
+  bool _createdOverlayVisible = false;
+  bool _isSaving = false;
+  List<String> _existingCategoryNames = [];
+  bool _isDuplicateName = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingCategories();
+    // Prompt for name on first load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasPromptedForName) {
+        _hasPromptedForName = true;
+        _editName(context);
+      }
+    });
+  }
+
+  Future<void> _loadExistingCategories() async {
+    try {
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+      if (mounted) {
+        setState(() {
+          _existingCategoryNames = categories
+              .map((cat) => cat.title.toLowerCase().trim())
+              .toList();
+        });
+      }
+    } catch (_) {
+      // If error, continue with empty list
+    }
+  }
+
+  bool _isNameUnique(String name) {
+    final normalizedName = name.toLowerCase().trim();
+    return !_existingCategoryNames.contains(normalizedName);
+  }
 
   Future<void> _editName(BuildContext context) async {
     final updated = await showTextEditOverlay(
@@ -30,20 +74,9 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
     if (updated != null && updated.isNotEmpty && updated != _categoryName) {
       setState(() {
         _categoryName = updated;
+        _isDuplicateName = !_isNameUnique(updated);
       });
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Prompt for name on first load
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_hasPromptedForName) {
-        _hasPromptedForName = true;
-        _editName(context);
-      }
-    });
   }
 
   Future<void> _addPhoto(BuildContext context) async {
@@ -113,151 +146,224 @@ class _CreateNewBillCategoryPageState extends State<CreateNewBillCategoryPage> {
     stream.addListener(listener);
   }
 
+  Future<void> _handleCreateCategory() async {
+    if (_createdOverlayVisible || _isSaving) return;
+
+    HapticFeedback.mediumImpact();
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be logged in to add a category.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final newCategory = await BillCategoriesRepository.instance
+          .createBillCategory(title: _categoryName, imageUrl: null);
+
+      if (!mounted) return;
+
+      setState(() {
+        _createdOverlayVisible = true;
+      });
+
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      // Navigate to BillsPage first, then push the new category page on top
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const BillsPage()),
+        (route) => false,
+      );
+
+      // Small delay to ensure BillsPage is rendered
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BillCategoryPage(
+            categoryId: newCategory.id,
+            categoryTitle: newCategory.title,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      final message = error is PostgrestException && error.message.isNotEmpty
+          ? error.message
+          : 'Failed to create category. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isValidName = _categoryName.isNotEmpty && _categoryName != 'Set name';
+    final isValidName =
+        _categoryName.isNotEmpty &&
+        _categoryName != 'Set name' &&
+        _isNameUnique(_categoryName);
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Column(
+      body: Stack(
         children: [
-          TextTopBar(
-            variant: isValidName
-                ? TextTopBarVariant.defaultActive
-                : TextTopBarVariant.doneInactive,
-            title: 'Create new bill category',
-            onBack: () => Navigator.pop(context),
-            onAddPressed: isValidName
-                ? () {
-                    // TODO: Handle create bill category action
-                  }
-                : () {
-                    // Inactive - do nothing
-                  },
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+          Column(
+            children: [
+              TextTopBar(
+                variant: isValidName
+                    ? TextTopBarVariant.defaultActive
+                    : TextTopBarVariant.doneInactive,
+                title: 'Create new bill category',
+                onBack: () => Navigator.pop(context),
+                onAddPressed: isValidName ? _handleCreateCategory : () {},
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 15),
-                    // Demo circular image - tap to add/view photo
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _photo == null
-                          ? _addPhoto(context)
-                          : _showFullScreenPhoto(context),
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.grey.shade300,
-                            width: 2,
-                          ),
-                        ),
-                        child: ClipOval(
-                          child: _photo != null
-                              ? Image(image: _photo!, fit: BoxFit.cover)
-                              : Image.asset(
-                                  AppIcons.billDefaultIcon,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: Colors.grey.shade200,
-                                      child: Icon(
-                                        Icons.image_not_supported,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    // Change icon button
-                    GestureDetector(
-                      onTap: () => _addPhoto(context),
-                      behavior: HitTestBehavior.opaque,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            AppIcons.editPencil,
-                            width: 24,
-                            height: 24,
-                            colorFilter: const ColorFilter.mode(
-                              Color(0xFF007AFF),
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Change icon',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w400,
-                              color: Color(0xFF007AFF),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    // Name settings menu
-                    SettingsMenu(
-                      label: 'Name',
-                      place: SettingsMenuPlace.defaultPlace,
-                      icon: SvgPicture.asset(
-                        AppIcons.home,
-                        width: 24,
-                        height: 24,
-                      ),
-                      rightText: true,
-                      rightLabel: _categoryName,
-                      onRightTap: () => _editName(context),
-                    ),
-                    const SizedBox(height: 15),
-                    // Info message
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          SvgPicture.asset(
-                            AppIcons.info,
-                            width: 25,
-                            height: 25,
-                            colorFilter: const ColorFilter.mode(
-                              Color(0xFF6B6B6B),
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Expanded(
-                            child: Text(
-                              'You can add individual bill payments later under this bill.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w300,
-                                color: Color(0xFF6B6B6B),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 15),
+                        // Demo circular image - tap to add/view photo
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _photo == null
+                              ? _addPhoto(context)
+                              : _showFullScreenPhoto(context),
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                width: 2,
                               ),
                             ),
+                            child: ClipOval(
+                              child: _photo != null
+                                  ? Image(image: _photo!, fit: BoxFit.cover)
+                                  : SvgPicture.asset(
+                                      'assets/png_photos/bill_deafult_icon.svg',
+                                      fit: BoxFit.cover,
+                                    ),
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 30),
+                        // Name settings menu
+                        SettingsMenu(
+                          label: 'Name',
+                          place: SettingsMenuPlace.defaultPlace,
+                          icon: SvgPicture.asset(
+                            AppIcons.home,
+                            width: 24,
+                            height: 24,
+                          ),
+                          rightText: true,
+                          rightLabel: _categoryName,
+                          onRightTap: () => _editName(context),
+                        ),
+                        if (_isDuplicateName)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 8,
+                              left: 14,
+                              right: 14,
+                            ),
+                            child: Row(
+                              children: [
+                                SvgPicture.asset(
+                                  AppIcons.wavyWarning,
+                                  width: 20,
+                                  height: 20,
+                                  colorFilter: const ColorFilter.mode(
+                                    Color(0xFFFF3B30),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Expanded(
+                                  child: Text(
+                                    'A bill category with this name already exists.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w400,
+                                      color: Color(0xFFFF3B30),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 15),
+                        // Info message
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              SvgPicture.asset(
+                                AppIcons.info,
+                                width: 25,
+                                height: 25,
+                                colorFilter: const ColorFilter.mode(
+                                  Color(0xFF6B6B6B),
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  'You can add individual transactions later under this bill.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w300,
+                                    color: Color(0xFF6B6B6B),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
+          ),
+          AnimatedOpacity(
+            opacity: _createdOverlayVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: _createdOverlayVisible
+                ? const CreatedOverlay()
+                : const SizedBox.shrink(),
           ),
         ],
       ),

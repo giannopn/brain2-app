@@ -8,7 +8,12 @@ import 'package:brain2/widgets/navigation_bar.dart' as custom;
 import 'package:brain2/widgets/navigation_icons.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/category_title.dart';
-import 'package:brain2/widgets/home_page_cards.dart';
+import 'package:brain2/widgets/bills_cards.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
+import 'package:brain2/screens/bill_details_page.dart';
+import 'package:brain2/models/bill_transaction.dart' as model;
+import 'package:brain2/widgets/bill_status.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,16 +30,25 @@ class _HomePageState extends State<HomePage> {
     initialScrollOffset: _savedScrollOffset,
   );
 
+  // Data for Past/Upcoming
+  List<model.BillTransaction> _pastTransactions = [];
+  List<model.BillTransaction> _upcomingTransactions = [];
+  Map<String, String> _categoryTitles = {};
+  bool _isLoadingData = true;
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
+    _loadData();
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
     _scrollController.dispose();
     super.dispose();
   }
@@ -61,13 +75,86 @@ class _HomePageState extends State<HomePage> {
                 top: false,
                 child: SingleChildScrollView(
                   controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
                   padding: EdgeInsets.zero,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _HistorySection(horizontalPadding: horizontalPadding),
-                      const SizedBox(height: 20),
-                    ],
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 15),
+                        CategoryTitle(
+                          title: 'Past',
+                          onViewAll: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const BillsPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        if (_isLoadingData)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_pastTransactions.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(
+                              'No past pending bills',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          )
+                        else
+                          ..._buildTransactionCards(_pastTransactions),
+
+                        const SizedBox(height: 12),
+                        CategoryTitle(
+                          title: 'Upcoming',
+                          onViewAll: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const BillsPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        if (_isLoadingData)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_upcomingTransactions.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(
+                              'No upcoming pending bills',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          )
+                        else
+                          ..._buildTransactionCards(_upcomingTransactions),
+
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -151,23 +238,31 @@ class _HomePageState extends State<HomePage> {
       child: SearchTopBar(
         variant: SearchTopBarVariant.home,
         onAdd: () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (context) => const AddPage()));
-        },
-        onSearchTap: () {
           Navigator.of(context).push(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const SearchPage(),
-              transitionDuration: const Duration(milliseconds: 300),
-              reverseTransitionDuration: const Duration(milliseconds: 250),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
+            MaterialPageRoute(
+              builder: (context) => const AddPage(source: AddEntrySource.home),
             ),
           );
+        },
+        onSearchTap: () {
+          Navigator.of(context)
+              .push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      const SearchPage(),
+                  transitionDuration: const Duration(milliseconds: 300),
+                  reverseTransitionDuration: const Duration(milliseconds: 250),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                ),
+              )
+              .then((result) async {
+                if (mounted && result == true) {
+                  await _loadData();
+                }
+              });
         },
         width: double.infinity,
       ),
@@ -175,106 +270,131 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleScroll() {
-    _savedScrollOffset = _scrollController.offset;
+    if (_scrollController.hasClients) {
+      _savedScrollOffset = _scrollController.offset;
+    }
   }
-}
 
-class _HistorySection extends StatelessWidget {
-  const _HistorySection({required this.horizontalPadding});
+  Future<void> _loadData() async {
+    try {
+      // Load categories for title lookup
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+      final titles = <String, String>{
+        for (final c in categories) c.id: c.title,
+      };
 
-  final double horizontalPadding;
+      // Load transactions (cache-first)
+      final all = await BillTransactionsRepository.instance
+          .fetchBillTransactions();
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 15),
-            CategoryTitle(
-              title: 'Past',
-              onViewAll: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const BillsPage()));
-              },
-            ),
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'ΔΕΗ - ΣΠΙΤΙ 2',
-              subtitle: '1 day ago',
-              subtitleColor: Color(0xFFFF3B30),
-              amount: '-34.22€',
-              width: double.infinity,
-            ),
-            const SizedBox(height: 4),
-            CategoryTitle(
-              title: 'Upcoming',
-              onViewAll: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const BillsPage()));
-              },
-            ),
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'ΔΕΗ',
-              subtitle: 'in 6 days',
-              amount: '-46.28€',
-              width: double.infinity,
-            ),
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'ΕΥΔΑΠ',
-              subtitle: 'in 10 days',
-              amount: '-13.00€',
-              width: double.infinity,
-            ),
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'INTERNET',
-              subtitle: 'in 14 days',
-              amount: '-30.90€',
-              width: double.infinity,
-            ),
+      final now = DateTime.now();
+      DateTime dOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+      final today = dOnly(now);
 
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'INTERNET',
-              subtitle: 'in 14 days',
-              amount: '-30.90€',
-              width: double.infinity,
-            ),
+      final past =
+          all
+              .where(
+                (t) =>
+                    t.status != model.BillStatus.paid &&
+                    dOnly(t.dueDate).isBefore(today),
+              )
+              .toList()
+            ..sort(
+              (a, b) => a.dueDate.compareTo(b.dueDate),
+            ); // oldest -> most recent
 
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'INTERNET',
-              subtitle: 'in 14 days',
-              amount: '-30.90€',
-              width: double.infinity,
-            ),
+      final upcoming =
+          all.where((t) => !dOnly(t.dueDate).isBefore(today)).toList()
+            ..sort((a, b) => a.dueDate.compareTo(b.dueDate)); // nearest -> far
 
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'INTERNET',
-              subtitle: 'in 14 days',
-              amount: '-30.90€',
-              width: double.infinity,
-            ),
+      if (!mounted) return;
+      setState(() {
+        _categoryTitles = titles;
+        _pastTransactions = past;
+        _upcomingTransactions = upcoming;
+        _isLoadingData = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingData = false;
+      });
+    }
+  }
 
-            const SizedBox(height: 4),
-            const HomePageCard(
-              title: 'INTERNET',
-              subtitle: 'in 14 days',
-              amount: '-30.90€',
-              width: double.infinity,
-            ),
-            const SizedBox(height: 15),
-          ],
+  String _formatDeadline(DateTime dueDate, model.BillStatus status) {
+    final today = DateTime.now();
+    final dateOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final daysDiff = dateOnly.difference(todayOnly).inDays;
+
+    if (daysDiff == 0) return 'Today';
+    if (daysDiff == 1) return 'Tomorrow';
+    if (daysDiff > 1) return 'in $daysDiff days';
+
+    if (daysDiff == -1 && status != model.BillStatus.paid) return 'yesterday';
+    if (daysDiff < 0 && status != model.BillStatus.paid)
+      return '${-daysDiff} days ago';
+
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${dueDate.day} ${months[dueDate.month - 1]} ${dueDate.year}';
+  }
+
+  BillStatusType _mapTransactionStatus(model.BillStatus status) {
+    switch (status) {
+      case model.BillStatus.paid:
+        return BillStatusType.paid;
+      case model.BillStatus.pending:
+        return BillStatusType.pending;
+      case model.BillStatus.overdue:
+        return BillStatusType.overdue;
+    }
+  }
+
+  List<Widget> _buildTransactionCards(List<model.BillTransaction> list) {
+    final widgets = <Widget>[];
+    for (int i = 0; i < list.length; i++) {
+      final t = list[i];
+      final title = _categoryTitles[t.categoryId] ?? 'Bill';
+      final subtitle = _formatDeadline(t.dueDate, t.status);
+      final amount = '${t.amount.toStringAsFixed(2)}€';
+      final status = _mapTransactionStatus(t.status);
+
+      widgets.add(
+        BillsCard(
+          type: BillsCardType.detailed,
+          title: title,
+          subtitle: subtitle,
+          amount: amount,
+          status: status,
+          width: double.infinity,
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BillDetailsPage(transactionId: t.id),
+              ),
+            );
+            if (mounted) await _loadData();
+          },
         ),
-      ),
-    );
+      );
+      if (i < list.length - 1) widgets.add(const SizedBox(height: 4));
+    }
+    return widgets;
   }
 }

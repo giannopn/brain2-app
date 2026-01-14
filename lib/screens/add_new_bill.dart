@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -12,12 +14,20 @@ import 'package:brain2/overlays/price_edit.dart';
 import 'package:brain2/overlays/calendar_overlay.dart';
 import 'package:brain2/overlays/photo_add_overlay.dart';
 import 'package:brain2/screens/home_page.dart';
+import 'package:brain2/screens/bills_page.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/models/bill_transaction.dart' as model;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+
+enum AddReturnTarget { home, bills, billCategory }
 
 class AddNewBillPage extends StatefulWidget {
   const AddNewBillPage({
     super.key,
-    this.categoryTitle = 'ΔΕΗ',
-    this.amount = '-46.28€',
+    required this.categoryId,
+    this.categoryTitle = 'Bill',
+    this.amount = '0.00€',
     this.status = BillStatusType.pending,
     this.deadline = '20 Nov 2025',
     this.createdOn = '1 Nov 2025',
@@ -25,8 +35,10 @@ class AddNewBillPage extends StatefulWidget {
     this.onMarkAsPaid,
     this.onAddPhoto,
     this.onDelete,
+    this.returnTarget = AddReturnTarget.home,
   });
 
+  final String categoryId;
   final String categoryTitle;
   final String amount;
   final BillStatusType status;
@@ -36,6 +48,7 @@ class AddNewBillPage extends StatefulWidget {
   final VoidCallback? onMarkAsPaid;
   final VoidCallback? onAddPhoto;
   final VoidCallback? onDelete;
+  final AddReturnTarget returnTarget;
 
   @override
   State<AddNewBillPage> createState() => _AddNewBillPageState();
@@ -52,6 +65,9 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
   ImageProvider? _photo;
   Size? _photoSize;
   bool _hasInitializedFlow = false;
+  bool _isSaving = false;
+  final ImagePicker _imagePicker = ImagePicker();
+  String? _uploadedReceiptPath;
 
   @override
   void initState() {
@@ -210,31 +226,160 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
     if (selection == null) return;
 
     if (selection == 'camera') {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Opening camera...')));
-      // TODO: Integrate camera capture flow
+      await _pickFromCamera(context);
     } else if (selection == 'gallery') {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Opening gallery...')));
-      // TODO: Integrate gallery picker flow
+      await _pickFromGallery(context);
     }
-
-    setState(() {
-      _photo = const AssetImage('assets/icon/brain2_logo.png');
-    });
-    _resolvePhotoSize(context);
-
-    widget.onAddPhoto?.call();
   }
 
-  void _removePhoto() {
+  Future<void> _pickFromCamera(BuildContext context) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
+
+      if (picked == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        _photo = FileImage(File(picked.path));
+      });
+      _resolvePhotoSize(context);
+      _uploadedReceiptPath = await _uploadReceipt(picked.path);
+      widget.onAddPhoto?.call();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not capture photo: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickFromGallery(BuildContext context) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
+
+      if (picked == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        _photo = FileImage(File(picked.path));
+      });
+      _resolvePhotoSize(context);
+      _uploadedReceiptPath = await _uploadReceipt(picked.path);
+      widget.onAddPhoto?.call();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load photo: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<String?> _uploadReceipt(String localPath) async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to upload.')),
+        );
+        return null;
+      }
+
+      final file = File(localPath);
+      final ext = localPath.split('.').last.toLowerCase();
+      final mime = _mimeFromExt(ext);
+      final filename = 'new_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final key = '${user.id}/pending/$filename';
+
+      final bytes = await file.readAsBytes();
+      await client.storage
+          .from('receipts')
+          .uploadBinary(
+            key,
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: mime),
+          );
+      return key;
+    } on StorageException catch (se) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: ${se.message}')));
+      }
+      return null;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: ${e.toString()}')),
+        );
+      }
+      return null;
+    }
+  }
+
+  String _mimeFromExt(String ext) {
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'heic':
+        return 'image/heic';
+      case 'heif':
+        return 'image/heif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  Future<void> _removePhoto() async {
     HapticFeedback.selectionClick();
+
+    final uploadedPath = _uploadedReceiptPath;
+
+    // Clear local state immediately for responsive UI
     setState(() {
       _photo = null;
       _photoSize = null;
+      _uploadedReceiptPath = null;
     });
+
+    // Delete from storage if it was uploaded
+    if (uploadedPath != null && uploadedPath.isNotEmpty) {
+      try {
+        final client = Supabase.instance.client;
+        await client.storage.from('receipts').remove([uploadedPath]);
+      } catch (e) {
+        // Show error if deletion fails
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove photo: ${e.toString()}'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _resolvePhotoSize(BuildContext context) {
@@ -298,18 +443,9 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
             border: Border.all(color: Colors.grey.shade300, width: 2),
           ),
           child: ClipOval(
-            child: Image.asset(
-              AppIcons.billDefaultIcon,
+            child: SvgPicture.asset(
+              'assets/png_photos/bill_deafult_icon.svg',
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey.shade200,
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey.shade400,
-                  ),
-                );
-              },
             ),
           ),
         ),
@@ -330,7 +466,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
       ),
     );
 
-    widgets.add(const SizedBox(height: 15));
+    widgets.add(const SizedBox(height: 20));
 
     widgets.add(
       _status != BillStatusType.paid
@@ -530,23 +666,7 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
                 variant: TextTopBarVariant.defaultActive,
                 title: 'Add new bill',
                 onBack: widget.onBack ?? () => Navigator.pop(context),
-                onAddPressed: () {
-                  HapticFeedback.mediumImpact();
-                  setState(() {
-                    _createdOverlayVisible = true;
-                  });
-                  Future.delayed(const Duration(milliseconds: 800), () {
-                    if (mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomePage(),
-                        ),
-                        (route) => false,
-                      );
-                    }
-                  });
-                },
+                onAddPressed: _handleCreateTransaction,
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -580,5 +700,89 @@ class _AddNewBillPageState extends State<AddNewBillPage> {
         ],
       ),
     );
+  }
+
+  model.BillStatus _mapBillStatus(BillStatusType type) {
+    switch (type) {
+      case BillStatusType.paid:
+        return model.BillStatus.paid;
+      case BillStatusType.overdue:
+        return model.BillStatus.overdue;
+      case BillStatusType.pending:
+        return model.BillStatus.pending;
+    }
+  }
+
+  double _parseAmount(String amountStr) {
+    final cleaned = amountStr.replaceAll('€', '').replaceAll(',', '.').trim();
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  Future<void> _handleCreateTransaction() async {
+    if (_isSaving || _createdOverlayVisible) return;
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to add a bill.')),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final amount = _parseAmount(_amount);
+
+      await BillTransactionsRepository.instance.createBillTransaction(
+        categoryId: widget.categoryId,
+        amount: amount,
+        dueDate: _deadlineDate,
+        status: _mapBillStatus(_status),
+        receiptUrl: _uploadedReceiptPath,
+      );
+
+      if (!mounted) return;
+
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _createdOverlayVisible = true;
+      });
+
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      if (widget.returnTarget == AddReturnTarget.billCategory) {
+        // Just pop back to the bill category page
+        Navigator.pop(context);
+      } else {
+        // Navigate to home or bills page
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => widget.returnTarget == AddReturnTarget.home
+                ? const HomePage()
+                : const BillsPage(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      final message = error is PostgrestException && error.message.isNotEmpty
+          ? error.message
+          : 'Failed to create bill. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 }

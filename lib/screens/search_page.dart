@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/filters.dart';
-import 'package:brain2/models/search_item.dart';
-import 'package:brain2/data/mock_search_data.dart';
+import 'package:brain2/widgets/bills_cards.dart';
+import 'package:brain2/widgets/bill_status.dart';
+import 'package:brain2/data/bill_categories_repository.dart';
+import 'package:brain2/data/bill_transactions_repository.dart';
+import 'package:brain2/models/bill_category.dart';
+import 'package:brain2/models/bill_transaction.dart' as model;
+import 'package:brain2/screens/bill_category.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -18,12 +23,16 @@ class _SearchPageState extends State<SearchPage> {
   bool _hasText = false;
   bool _showFiltersBorder = false;
   FilterActive _activeFilter = FilterActive.all;
-  List<SearchItem> _filteredItems = mockSearchItems;
+  List<BillCategory> _allCategories = [];
+  List<BillCategory> _filteredItems = [];
+  Map<String, BillStatusType> _categoryStatuses = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _loadData();
   }
 
   @override
@@ -32,6 +41,65 @@ class _SearchPageState extends State<SearchPage> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      // Load categories from cache
+      final categories = await BillCategoriesRepository.instance
+          .fetchBillCategories();
+
+      // Load all transactions to determine status for each category
+      final transactions = await BillTransactionsRepository.instance
+          .fetchBillTransactions();
+
+      // Calculate status for each category based on its transactions
+      final Map<String, BillStatusType> statuses = {};
+      for (final category in categories) {
+        final categoryTransactions = transactions
+            .where((t) => t.categoryId == category.id)
+            .toList();
+
+        if (categoryTransactions.isEmpty) {
+          // No transactions yet, default to paid
+          statuses[category.id] = BillStatusType.paid;
+        } else {
+          // Check if any transaction is overdue
+          final hasOverdue = categoryTransactions.any(
+            (t) => t.status == model.BillStatus.overdue,
+          );
+          if (hasOverdue) {
+            statuses[category.id] = BillStatusType.overdue;
+          } else {
+            // Check if any transaction is pending
+            final hasPending = categoryTransactions.any(
+              (t) => t.status == model.BillStatus.pending,
+            );
+            if (hasPending) {
+              statuses[category.id] = BillStatusType.pending;
+            } else {
+              // All transactions are paid
+              statuses[category.id] = BillStatusType.paid;
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _allCategories = categories;
+          _categoryStatuses = statuses;
+          _isLoading = false;
+        });
+        _filterItems();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _onSearchChanged() {
@@ -44,19 +112,21 @@ class _SearchPageState extends State<SearchPage> {
   void _filterItems() {
     final query = _searchController.text.toLowerCase().trim();
 
-    List<SearchItem> items = mockSearchItems;
+    List<BillCategory> items = List.from(_allCategories);
 
-    // Filter by type based on active filter
+    // Filter by status based on active filter
     if (_activeFilter == FilterActive.second) {
-      // Only bills
-      items = items.where((item) => item.type == SearchItemType.bill).toList();
-    } else if (_activeFilter == FilterActive.third) {
-      // Only subscriptions
+      // Only pending categories
       items = items
-          .where((item) => item.type == SearchItemType.subscription)
+          .where((cat) => _categoryStatuses[cat.id] == BillStatusType.pending)
+          .toList();
+    } else if (_activeFilter == FilterActive.third) {
+      // Only overdue categories
+      items = items
+          .where((cat) => _categoryStatuses[cat.id] == BillStatusType.overdue)
           .toList();
     }
-    // If _activeFilter == FilterActive.all, show all types
+    // If _activeFilter == FilterActive.all, show all categories
 
     // Filter by search query
     if (query.isNotEmpty) {
@@ -79,7 +149,9 @@ class _SearchPageState extends State<SearchPage> {
       });
     }
 
-    _filteredItems = items;
+    setState(() {
+      _filteredItems = items;
+    });
   }
 
   void _onFilterChanged(FilterActive filter) {
@@ -145,7 +217,7 @@ class _SearchPageState extends State<SearchPage> {
               searchController: _searchController,
               searchFocusNode: _searchFocusNode,
               hasText: _hasText,
-              onAdd: () => Navigator.of(context).pop(),
+              onAdd: () => Navigator.of(context).pop(true),
               onClear: () {
                 _searchController.clear();
               },
@@ -165,8 +237,9 @@ class _SearchPageState extends State<SearchPage> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(15, 0, 15, 4),
                 child: Filters(
-                  labelSecond: 'Bills',
-                  labelThird: 'Subscriptions',
+                  labelAll: 'All',
+                  labelSecond: 'Pending',
+                  labelThird: 'Overdue',
                   active: _activeFilter,
                   onChanged: _onFilterChanged,
                 ),
@@ -184,7 +257,9 @@ class _SearchPageState extends State<SearchPage> {
                   }
                   return false;
                 },
-                child: _filteredItems.isEmpty
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _filteredItems.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(20),
@@ -207,9 +282,12 @@ class _SearchPageState extends State<SearchPage> {
                           if (index == _filteredItems.length + 1) {
                             return const SizedBox(height: 61);
                           }
-                          final item = _filteredItems[index - 1];
+                          final category = _filteredItems[index - 1];
+                          final status =
+                              _categoryStatuses[category.id] ??
+                              BillStatusType.pending;
                           return TweenAnimationBuilder<double>(
-                            key: ValueKey(item.title),
+                            key: ValueKey(category.id),
                             duration: const Duration(milliseconds: 300),
                             curve: Curves.easeInOut,
                             tween: Tween(begin: 0.0, end: 1.0),
@@ -223,7 +301,34 @@ class _SearchPageState extends State<SearchPage> {
                               );
                             },
                             child: Column(
-                              children: [item.card, const SizedBox(height: 4)],
+                              children: [
+                                GestureDetector(
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => BillCategoryPage(
+                                          categoryId: category.id,
+                                          categoryTitle: category.title,
+                                        ),
+                                      ),
+                                    );
+
+                                    // Reload data when returning from category page
+                                    if (mounted) {
+                                      await _loadData();
+                                    }
+                                  },
+                                  behavior: HitTestBehavior.opaque,
+                                  child: BillsCard(
+                                    type: BillsCardType.general,
+                                    title: category.title,
+                                    status: status,
+                                    width: double.infinity,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                              ],
                             ),
                           );
                         },
