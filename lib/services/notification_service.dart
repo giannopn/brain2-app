@@ -365,14 +365,6 @@ class NotificationService {
       final nowTz = tz.TZDateTime.now(tz.local);
       tz.TZDateTime scheduledTz = tz.TZDateTime.from(scheduledLocal, tz.local);
 
-      // If the scheduled time is already past, fall back to 1 minute from now
-      if (!scheduledTz.isAfter(nowTz)) {
-        scheduledTz = nowTz.add(const Duration(minutes: 1));
-        debugPrint(
-          'NotificationService: scheduled time was past; rescheduling in 1 minute at $scheduledTz',
-        );
-      }
-
       // Only schedule in the future
       if (!scheduledTz.isAfter(nowTz)) {
         debugPrint(
