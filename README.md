@@ -9,8 +9,8 @@
 deadline πληρωμής, καθώς και να επισυνάπτει φωτογραφίες (**Camera**).
 
 Όλοι οι λογαριασμοί οργανώνονται σε κατηγορίες, ώστε ο χρήστης να μπορεί να βλέπει συγκεντρωτικά τις 
-υποχρεώσεις κάθε κατηγορίας. Παράλληλα, η εφαρμογή ειδοποιεί τον χρήστη με **Push
-Notifications** όταν έρχεται η ώρα πληρωμής ενός λογαριασμού.
+υποχρεώσεις κάθε κατηγορίας. Παράλληλα, η εφαρμογή ειδοποιεί τον χρήστη με **Push Notifications** όταν 
+έρχεται η ώρα πληρωμής ενός λογαριασμού.
 
 Η Brain2 παρέχει έναν δείκτη συνέπειας πληρωμών (Consistency Score), μέσω του οποίου ο χρήστης 
 μπορεί να βλέπει συνοπτικά πόσο συνεπής είναι στις οικονομικές του υποχρεώσεις (**Gamification**). 
@@ -29,7 +29,7 @@ Notifications** όταν έρχεται η ώρα πληρωμής ενός λο
 ## Download Guide
 
 Η εγκατάσταση της εφαρμογής Brain2 είναι απλή και δεν απαιτεί τεχνικές γνώσεις.
-1. Κατεβάστε το αρχείο [app-release.apk](github release apk).
+1. Κατεβάστε το αρχείο [app-release.apk](https://github.com/giannopn/brain2-app/releases).
 2. Ανοίξτε το αρχείο στο Android κινητό σας.
 3. Αν ζητηθεί άδεια για εγκατάσταση από άγνωστη πηγή, επιλέξτε "Allow".
 4. Πατήστε "Install" και περιμένετε να ολοκληρωθεί η εγκατάσταση.
@@ -66,7 +66,7 @@ Notifications** όταν έρχεται η ώρα πληρωμής ενός λο
 
 ## Links
 
-- [apk download](github release apk)
+- [Download apk](https://github.com/giannopn/brain2-app/releases)
 - [GitHub Repository](https://github.com/giannopn/brain2-app.git)
 - [Brain2 - Getting Started Video](https://youtu.be/lakukDfQNs4)
 
