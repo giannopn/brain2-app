@@ -1,16 +1,70 @@
-# brain2
+# Brain2 App
 
-A new Flutter project.
+## Overview
 
-## Getting Started
+Η Brain2 είναι μια mobile εφαρμογή για Android & iOS που βοηθά τον χρήστη να οργανώνει τις οικονομικές 
+του υποχρεώσεις (π.χ. λογαριασμούς) και να παρακολουθεί εύκολα την κατάστασή τους.
 
-This project is a starting point for a Flutter application.
+Ο χρήστης μπορεί να προσθέτει νέους λογαριασμούς καταχωρώντας βασικά στοιχεία, όπως το ποσό, το 
+deadline πληρωμής, καθώς και να επισυνάπτει φωτογραφίες (**Camera**).
 
-A few resources to get you started if this is your first Flutter project:
+Όλοι οι λογαριασμοί οργανώνονται σε κατηγορίες, ώστε ο χρήστης να μπορεί να βλέπει συγκεντρωτικά τις 
+υποχρεώσεις κάθε κατηγορίας. Παράλληλα, η εφαρμογή ειδοποιεί τον χρήστη με **Push
+Notifications** όταν έρχεται η ώρα πληρωμής ενός λογαριασμού.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Η Brain2 παρέχει έναν δείκτη συνέπειας πληρωμών (Consistency Score), μέσω του οποίου ο χρήστης 
+μπορεί να βλέπει συνοπτικά πόσο συνεπής είναι στις οικονομικές του υποχρεώσεις (**Gamification**). 
+Όλα τα δεδομένα αποθηκεύονται αυτόματα στο account του χρήστη (**Cloud Sync**).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Η εφαρμογή έχει σχεδιαστεί με έμφαση στην απλότητα και την ευχρηστία, ώστε να μπορεί να χρησιμοποιηθεί 
+άνετα από οποιονδήποτε χρήστη χωρίς τεχνικές γνώσεις. Η διεπαφή είναι καθαρή και προσανατολισμένη στη 
+γρήγορη κατανόηση της κατάστασης των υποχρεώσεων, ενώ αξιοποιεί στοιχεία αλληλεπίδρασης, 
+όπως **Gestures**, **Haptic Feedback** και **Sensors**, προσφέροντας διακριτικά οπτικά και κινητικά εφέ που 
+ενισχύουν την εμπειρία χρήσης χωρίς να αποσπούν τον χρήστη.
+
+Τέλος, η εφαρμογή προσαρμόζει δυναμικά την εμφάνιση των κατηγοριών με βάση τη συχνότητα χρήσης τους, ώστε οι 
+πιο συχνά χρησιμοποιούμενες να εμφανίζονται πρώτες στα διάφορα μενού, βελτιώνοντας την πλοήγηση 
+(**User Modeling & Adaptation**).
+
+## Download Guide
+
+Η εγκατάσταση της εφαρμογής Brain2 είναι απλή και δεν απαιτεί τεχνικές γνώσεις.
+1. Κατεβάστε το αρχείο [app-release.apk](github release apk).
+2. Ανοίξτε το αρχείο στο Android κινητό σας.
+3. Αν ζητηθεί άδεια για εγκατάσταση από άγνωστη πηγή, επιλέξτε "Allow".
+4. Πατήστε "Install" και περιμένετε να ολοκληρωθεί η εγκατάσταση.
+
+Η εφαρμογή μπορεί να εγκατασταθεί σε Android συσκευές με Android 7.0 ή νεότερο και 
+δεν απαιτείται καμία επιπλέον τεχνική ρύθμιση.
+
+## User Guide
+
+- Κατά την πρώτη εκκίνηση της εφαρμογής, ο χρήστης πραγματοποιεί εγγραφή ή σύνδεση εισάγοντας μόνο το email 
+του και ακολουθώντας τις οδηγίες που εμφανίζονται στην οθόνη.
+- Μετά τη σύνδεση, ο χρήστης μπορεί να προσθέτει και να διαχειρίζεται τους λογαριασμούς του, να παρακολουθεί 
+την κατάστασή τους και να λαμβάνει ειδοποιήσεις πληρωμής.
+
+Για αναλυτική παρουσίαση της χρήσης και των δυνατοτήτων της εφαρμογής, παρέχεται σύντομο βίντεο παρουσίασης: 
+[Brain2 - Getting Started](https://youtu.be/lakukDfQNs4)
+
+## Requirements
+
+Η εφαρμογή έχει αναπτυχθεί με Flutter και χρησιμοποιεί τις προεπιλεγμένες ρυθμίσεις Android SDK του Flutter SDK.
+
+### Android SDK
+- **minSdkVersion:** 24 (Android 7.0)
+- **targetSdkVersion:** 36 (Android 16)
+- **compileSdkVersion:** 36 (Android 16)
+
+>Η εφαρμογή δοκιμάστηκε σε Android emulator με Android 16 (API 36).\
+Η εφαρμογή δοκιμάστηκε επίσης σε iPhone με iOS 26.
+
+### Emulator image
+
+Για εκτέλεση σε Android emulator δεν απαιτείται image με Google API / Google Play Services.\
+Αρκεί ένα standard Android emulator image.
+
+## Links
+- [apk download](github release apk)
+- [GitHub Repository](https://github.com/giannopn/brain2-app.git)
+- [Brain2 - Getting Started Video](https://youtu.be/lakukDfQNs4)
