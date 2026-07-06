@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/widgets/toggle_switch.dart';
@@ -69,83 +70,83 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Show/Hide Debug Controls toggle
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _showDebugControls = !_showDebugControls;
-                          });
-                        },
-                        icon: Icon(
-                          _showDebugControls
-                              ? Icons.expand_less
-                              : Icons.expand_more,
-                          color: const Color(0xFF6B7280),
-                        ),
-                        label: Text(
-                          _showDebugControls
-                              ? 'Hide Debug Controls'
-                              : 'Show Debug Controls',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Inter',
-                            color: Color(0xFF6B7280),
+                  if (kDebugMode) ...[
+                    // Show/Hide Debug Controls toggle
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showDebugControls = !_showDebugControls;
+                            });
+                          },
+                          icon: Icon(
+                            _showDebugControls
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            color: const Color(0xFF6B7280),
                           ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          label: Text(
+                            _showDebugControls
+                                ? 'Hide Debug Controls'
+                                : 'Show Debug Controls',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Inter',
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  if (_showDebugControls)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 4,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Test notification button
-                          ElevatedButton(
-                            onPressed: () async {
-                              await NotificationService.instance
-                                  .showTestNotification();
-                              if (mounted) {
+                    if (_showDebugControls)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 4,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Test notification button
+                            ElevatedButton(
+                              onPressed: () async {
+                                await NotificationService.instance
+                                    .showTestNotification();
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('Test notification sent!'),
                                     duration: Duration(seconds: 2),
                                   ),
                                 );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF007AFF),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF007AFF),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                              child: const Text('Send Test Notification'),
                             ),
-                            child: const Text('Send Test Notification'),
-                          ),
-                          const SizedBox(height: 8),
-                          // Scheduled test notification button
-                          ElevatedButton(
-                            onPressed: () async {
-                              await NotificationService.instance
-                                  .scheduleTestNotification();
-                              if (mounted) {
+                            const SizedBox(height: 8),
+                            // Scheduled test notification button
+                            ElevatedButton(
+                              onPressed: () async {
+                                await NotificationService.instance
+                                    .scheduleTestNotification();
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
@@ -154,101 +155,103 @@ class _NotificationsSettingsState extends State<NotificationsSettings> {
                                     duration: Duration(seconds: 3),
                                   ),
                                 );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF34C759),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF34C759),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                              child: const Text('Schedule Test (30s)'),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Local time: ${_formatNow()}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: 'Inter',
                               ),
                             ),
-                            child: const Text('Schedule Test (30s)'),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Local time: ${_formatNow()}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: 'Inter',
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Scheduled notifications',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Inter',
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Scheduled notifications',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          if (_loading)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: Text('Loading…'),
-                            )
-                          else if (_scheduled.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: Text('No scheduled notifications'),
-                            )
-                          else
-                            Column(
-                              children: _scheduled
-                                  .map(
-                                    (s) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF7F7F7),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
+                            const SizedBox(height: 8),
+                            if (_loading)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text('Loading...'),
+                              )
+                            else if (_scheduled.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text('No scheduled notifications'),
+                              )
+                            else
+                              Column(
+                                children: _scheduled
+                                    .map(
+                                      (s) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 6,
+                                        ),
+                                        child: Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF7F7F7),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                s.title,
+                                                style: const TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontFamily: 'Inter',
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'When: ${_formatDateTime(s.scheduledTime)}',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'In: ${_formatDuration(s.timeUntil)}',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              s.title,
-                                              style: const TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w600,
-                                                fontFamily: 'Inter',
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'When: ${_formatDateTime(s.scheduledTime)}',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              'In: ${_formatDuration(s.timeUntil)}',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
                                       ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                        ],
+                                    )
+                                    .toList(),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
+                  ],
                 ],
               ),
             ),

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -80,8 +80,7 @@ class NotificationService {
       // Get the local timezone name from the platform
       String? timeZoneName;
       try {
-        const platform = MethodChannel('flutter.io/timezone');
-        timeZoneName = await platform.invokeMethod<String>('getLocalTimezone');
+        timeZoneName = await FlutterTimezone.getLocalTimezone();
       } catch (e) {
         debugPrint(
           'NotificationService: Could not get timezone from platform: $e',
@@ -198,10 +197,6 @@ class NotificationService {
       try {
         await androidImpl.requestNotificationsPermission();
         debugPrint('NotificationService: Android permission requested');
-
-        // Request exact alarm permission for Android 13+
-        await androidImpl.requestExactAlarmsPermission();
-        debugPrint('NotificationService: Exact alarms permission requested');
       } catch (e) {
         debugPrint(
           'NotificationService: Android permission request (may be older version): $e',
@@ -256,18 +251,6 @@ class NotificationService {
           debugPrint(
             'NotificationService: Android permission result: granted=$granted enabled=$enabled',
           );
-
-          // Also request exact alarms permission
-          try {
-            await androidImpl.requestExactAlarmsPermission();
-            debugPrint(
-              'NotificationService: Exact alarms permission requested',
-            );
-          } catch (e) {
-            debugPrint(
-              'NotificationService: Exact alarms permission request: $e',
-            );
-          }
         } catch (e) {
           debugPrint(
             'NotificationService: Android permission request failed: $e',
@@ -311,7 +294,7 @@ class NotificationService {
     }
   }
 
-  /// Schedule a due-date notification at 02:10 local time on [dueDate]
+  /// Schedule a due-date notification at 10:00 local time on [dueDate]
   /// Returns [NotificationScheduleInfo] if scheduled successfully, null otherwise.
   /// - [transactionId] is used to derive a stable notification id
   /// - [title] is the notification title
@@ -324,27 +307,10 @@ class NotificationService {
   }) async {
     try {
       // Ensure permissions are requested before scheduling
-      await requestPermissions();
-
-      // Check if exact alarms are permitted on Android
-      final androidImpl = _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
-      if (androidImpl != null) {
-        try {
-          final canSchedule = await androidImpl.canScheduleExactNotifications();
-          if (canSchedule == false) {
-            debugPrint(
-              'NotificationService: Exact alarms not permitted, requesting...',
-            );
-            await androidImpl.requestExactAlarmsPermission();
-          }
-        } catch (e) {
-          debugPrint(
-            'NotificationService: Could not check exact alarm permission: $e',
-          );
-        }
+      final granted = await requestPermissions();
+      if (!granted) {
+        debugPrint('NotificationService: skip schedule (permission denied)');
+        return null;
       }
 
       final int id = _stableIdFrom(transactionId);
@@ -402,51 +368,20 @@ class NotificationService {
         'NotificationService: Time until: ${scheduledTz.difference(nowTz)}',
       );
 
-      try {
-        // Try to schedule with exact alarms first
-        await _plugin.zonedSchedule(
-          id,
-          title,
-          body,
-          scheduledTz,
-          details,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          payload: transactionId,
-        );
-        debugPrint(
-          'NotificationService: Successfully scheduled with exactAllowWhileIdle',
-        );
-      } catch (exactError) {
-        debugPrint('NotificationService: Exact schedule failed: $exactError');
-        debugPrint(
-          'NotificationService: Falling back to inexactAllowWhileIdle',
-        );
-
-        try {
-          // Fallback to inexact alarms
-          await _plugin.zonedSchedule(
-            id,
-            title,
-            body,
-            scheduledTz,
-            details,
-            uiLocalNotificationDateInterpretation:
-                UILocalNotificationDateInterpretation.absoluteTime,
-            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-            payload: transactionId,
-          );
-          debugPrint(
-            'NotificationService: Successfully scheduled with inexactAllowWhileIdle',
-          );
-        } catch (inexactError) {
-          debugPrint(
-            'NotificationService: Inexact schedule also failed: $inexactError',
-          );
-          rethrow;
-        }
-      }
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledTz,
+        details,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: transactionId,
+      );
+      debugPrint(
+        'NotificationService: Successfully scheduled with inexactAllowWhileIdle',
+      );
 
       final timeUntil = scheduledTz.difference(tz.TZDateTime.now(tz.local));
       _scheduled[transactionId] = ScheduledNotificationOverview(
@@ -516,7 +451,13 @@ class NotificationService {
   /// Show an immediate test notification (useful for debugging)
   Future<void> showTestNotification() async {
     try {
-      await requestPermissions();
+      final granted = await requestPermissions();
+      if (!granted) {
+        debugPrint(
+          'NotificationService: skip test notification (permission denied)',
+        );
+        return;
+      }
 
       const details = NotificationDetails(
         android: AndroidNotificationDetails(
@@ -558,30 +499,12 @@ class NotificationService {
   /// Schedule a test notification 30 seconds in the future
   Future<void> scheduleTestNotification() async {
     try {
-      await requestPermissions();
-
-      // Check if exact alarms are permitted on Android
-      final androidImpl = _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >();
-      if (androidImpl != null) {
-        try {
-          final canSchedule = await androidImpl.canScheduleExactNotifications();
-          debugPrint(
-            'NotificationService: Can schedule exact alarms: $canSchedule',
-          );
-          if (canSchedule == false) {
-            debugPrint(
-              'NotificationService: Requesting exact alarms permission...',
-            );
-            await androidImpl.requestExactAlarmsPermission();
-          }
-        } catch (e) {
-          debugPrint(
-            'NotificationService: Could not check exact alarm permission: $e',
-          );
-        }
+      final granted = await requestPermissions();
+      if (!granted) {
+        debugPrint(
+          'NotificationService: skip scheduled test notification (permission denied)',
+        );
+        return;
       }
 
       final nowTz = tz.TZDateTime.now(tz.local);
@@ -614,51 +537,19 @@ class NotificationService {
       debugPrint('NotificationService: Scheduled for: $scheduledTz');
       debugPrint('NotificationService: Now: $nowTz');
 
-      try {
-        // Try exact alarms first
-        await _plugin.zonedSchedule(
-          999998, // Use a high ID unlikely to conflict
-          'Scheduled Test Notification',
-          'This notification was scheduled for 30 seconds from now',
-          scheduledTz,
-          details,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        );
-        debugPrint(
-          'NotificationService: Test notification scheduled with exactAllowWhileIdle',
-        );
-      } catch (exactError) {
-        debugPrint(
-          'NotificationService: Exact test schedule failed: $exactError',
-        );
-        debugPrint(
-          'NotificationService: Falling back to inexactAllowWhileIdle',
-        );
-
-        try {
-          // Fallback to inexact alarms
-          await _plugin.zonedSchedule(
-            999998, // Use a high ID unlikely to conflict
-            'Scheduled Test Notification',
-            'This notification was scheduled for 30 seconds from now',
-            scheduledTz,
-            details,
-            uiLocalNotificationDateInterpretation:
-                UILocalNotificationDateInterpretation.absoluteTime,
-            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          );
-          debugPrint(
-            'NotificationService: Test notification scheduled with inexactAllowWhileIdle',
-          );
-        } catch (inexactError) {
-          debugPrint(
-            'NotificationService: Inexact test schedule also failed: $inexactError',
-          );
-          rethrow;
-        }
-      }
+      await _plugin.zonedSchedule(
+        999998, // Use a high ID unlikely to conflict
+        'Scheduled Test Notification',
+        'This notification was scheduled for 30 seconds from now',
+        scheduledTz,
+        details,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+      debugPrint(
+        'NotificationService: Test notification scheduled with inexactAllowWhileIdle',
+      );
     } catch (e, st) {
       debugPrint('NotificationService: scheduleTestNotification error: $e');
       debugPrint('$st');
