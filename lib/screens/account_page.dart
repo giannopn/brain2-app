@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:brain2/theme/app_icons.dart';
+import 'package:brain2/screens/login_page.dart';
 import 'package:brain2/widgets/search_top_bar.dart';
 import 'package:brain2/overlays/text_edit.dart';
 import 'package:brain2/overlays/delete_confirmation_swipe.dart';
 import 'package:brain2/data/profile_repository.dart';
 import 'package:brain2/models/profile.dart';
+import 'package:brain2/services/account_deletion_service.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -19,6 +21,7 @@ class _AccountPageState extends State<AccountPage> {
   Profile? _profile;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isDeletingAccount = false;
 
   @override
   void initState() {
@@ -92,6 +95,52 @@ class _AccountPageState extends State<AccountPage> {
           });
         }
       }
+    }
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    if (_isDeletingAccount) return;
+
+    final confirmed = await showDeleteConfirmationSwipeOverlay(
+      context,
+      title: 'Delete Account?',
+      description:
+          'Deleting your account is permanent. You will immediately lose access to all your data. Are you sure?',
+      confirmText: 'Swipe to confirm',
+    );
+
+    if (!mounted || confirmed != true) return;
+
+    setState(() {
+      _isDeletingAccount = true;
+    });
+
+    try {
+      await AccountDeletionService.instance.deleteCurrentAccount();
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isDeletingAccount = false;
+      });
+
+      final message = error is AccountDeletionException
+          ? error.message
+          : 'Failed to delete account. Please try again.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: _redColor,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -235,34 +284,18 @@ class _AccountPageState extends State<AccountPage> {
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(18),
-                          onTap: () async {
-                            final confirmed =
-                                await showDeleteConfirmationSwipeOverlay(
-                                  context,
-                                  title: 'Delete Account?',
-                                  description:
-                                      'Deleting your account is permanent. You will immediately lose access to all your data. Are you sure?',
-                                  confirmText: 'Swipe to confirm',
-                                );
-                            if (confirmed == true && mounted) {
-                              // Show message that deletion is not possible yet
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'For security reasons, the deletion of the account inside the app is not possible yet. Please contact us.',
-                                  ),
-                                  duration: Duration(seconds: 5),
-                                ),
-                              );
-                            }
-                          },
+                          onTap: _isDeletingAccount
+                              ? null
+                              : _handleDeleteAccount,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 15),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Delete Account',
+                                  _isDeletingAccount
+                                      ? 'Deleting Account...'
+                                      : 'Delete Account',
                                   style: TextStyle(
                                     fontSize: _fontSizeDeleteAccount,
                                     fontWeight: FontWeight.w400,
@@ -271,15 +304,27 @@ class _AccountPageState extends State<AccountPage> {
                                     height: 1,
                                   ),
                                 ),
-                                SvgPicture.asset(
-                                  AppIcons.arrow,
-                                  width: 24,
-                                  height: 24,
-                                  colorFilter: const ColorFilter.mode(
-                                    _redColor,
-                                    BlendMode.srcIn,
-                                  ),
-                                ),
+                                _isDeletingAccount
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                _redColor,
+                                              ),
+                                        ),
+                                      )
+                                    : SvgPicture.asset(
+                                        AppIcons.arrow,
+                                        width: 24,
+                                        height: 24,
+                                        colorFilter: const ColorFilter.mode(
+                                          _redColor,
+                                          BlendMode.srcIn,
+                                        ),
+                                      ),
                               ],
                             ),
                           ),
