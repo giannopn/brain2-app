@@ -1,4 +1,4 @@
-package com.example.brain2
+package com.ng.brain2
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
